@@ -49,6 +49,8 @@
   }
   .popover-titulo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; color: #9fb0c9; margin-bottom: 6px; }
   .popover-linha { display: flex; justify-content: space-between; gap: 16px; font-size: 0.88rem; padding: 2px 0; }
+  .popover-linha-atual { padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+  .popover-linha-atual .ano { color: #fff; font-weight: 600; }
   .popover-linha .ano { color: #9fb0c9; }
   .popover-linha .valor { font-weight: 700; }
 
@@ -127,14 +129,17 @@
                     <span class="{{ 'valor-ok' if item.status == 'cumpre' else 'valor-baixo' }}">
                       {{ "%.2f"|format(item.real) }}
                     </span>
-                    {% if item.evolucao %}
                     <div class="valor-popover">
                       <div class="popover-titulo">Evolução do contrato</div>
-                      {% for ano, valor in item.evolucao %}
-                        <div class="popover-linha"><span class="ano">{{ ano }}</span><span class="valor">{{ "%.2f"|format(valor) }}</span></div>
-                      {% endfor %}
+                      {% if item.meta is not none %}
+                        <div class="popover-linha popover-linha-atual"><span class="ano">Atual</span><span class="valor">{{ "%.2f"|format(item.meta) }}</span></div>
+                      {% endif %}
+                      {% if item.evolucao %}
+                        {% for ano, valor in item.evolucao %}
+                          <div class="popover-linha"><span class="ano">{{ ano }}</span><span class="valor">{{ "%.2f"|format(valor) }}</span></div>
+                        {% endfor %}
+                      {% endif %}
                     </div>
-                    {% endif %}
                   </span>
                 </td>
               {% else %}
