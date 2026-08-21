@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{% endblock %} — SISPLAN v2</title>
+
+  {# preconnect: o navegador já resolve DNS/TLS desses domínios em
+     paralelo com o carregamento do HTML, em vez de só começar esse
+     processo quando encontra o primeiro <link>/<script> de cada um.
+     Ganho pequeno por request, mas gratuito (não custa nada colocar). #}
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdn.datatables.net">
+  <link rel="preconnect" href="https://code.jquery.com">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+
+  {% block head_extra %}{% endblock %}
+  <style>
+    body { background: #f5f7f9; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .sisplan-nav {
+      display: flex; align-items: center; gap: 4px;
+      background: #fff; border-bottom: 1px solid #e3e8ec;
+      padding: 10px 24px;
+    }
+    .sisplan-nav-logo { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #12707a; margin-right: 20px; }
+    .sisplan-nav-logo svg { width: 30px; height: 30px; }
+    .sisplan-content { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .sisplan-footer {
+      text-align: center; font-size: 0.78rem; color: #8a9a9d;
+      padding: 20px; border-top: 1px solid #e3e8ec; margin-top: 40px;
+    }
+    .nav-dropdown-item.active { background: #e6f6f8; color: #12707a; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<nav class="sisplan-nav">
+  <a href="{{ url_for('home.home') }}" class="sisplan-nav-logo" style="text-decoration:none;">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 2C16 2 4 14 4 21C4 27.6 9.4 32 16 32C22.6 32 28 27.6 28 21C28 14 16 2 16 2Z" fill="#1a9baa"/>
+      <path d="M16 8C16 8 8 17 8 21.5C8 24.5 11.5 27 16 27" fill="white" opacity="0.35"/>
+    </svg>
+    <span>SISPLAN</span>
+  </a>
+
+  <a href="{{ url_for('home.home') }}" class="btn btn-sm {% if pagina_ativa == 'home' %}btn-info text-white{% else %}btn-light{% endif %}">
+    <i class="bi bi-house-door me-1"></i>Início
+  </a>
+
+  {# ── Dropdown: Contratos de Programa (Por Município / Por Indicador / Análise Geral) ── #}
+  <div class="dropdown">
+    <button class="btn btn-sm dropdown-toggle {% if pagina_ativa == 'contratos' %}btn-info text-white{% else %}btn-light{% endif %}"
+            type="button" data-bs-toggle="dropdown">
+      <i class="bi bi-file-earmark-ruled me-1"></i>Contratos de Programa
+    </button>
+    <ul class="dropdown-menu">
+      <li>
+        <a class="dropdown-item nav-dropdown-item {% if sub_ativa == 'analise_geral' %}active{% endif %}"
+           href="{{ url_for('contratos.analise_geral') }}">
+          <i class="bi bi-clipboard-data me-2"></i>Análise Geral
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item nav-dropdown-item {% if sub_ativa == 'por_municipio' %}active{% endif %}"
+           href="{{ url_for('contratos.por_municipio') }}">
+          <i class="bi bi-geo-alt me-2"></i>Por Município
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item nav-dropdown-item {% if sub_ativa == 'por_indicador' %}active{% endif %}"
+           href="{{ url_for('contratos.por_indicador') }}">
+          <i class="bi bi-bar-chart me-2"></i>Por Indicador
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<div class="sisplan-content">
+  {% block content %}{% endblock %}
+</div>
+
+<footer class="sisplan-footer">
+  SANESUL — Empresa de Saneamento de Mato Grosso do Sul S.A. &nbsp;·&nbsp; SISPLAN v2 &nbsp;·&nbsp; 68 municípios
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+{% block scripts_extra %}{% endblock %}
+</body>
+</html>

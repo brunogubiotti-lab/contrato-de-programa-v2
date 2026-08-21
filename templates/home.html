@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Início{% endblock %}
+
+{% block content %}
+<div class="text-center py-4 mb-4">
+  <h2 style="color:#12707a;">SISPLAN — Contratos de Programa</h2>
+  <p class="text-muted">Comparação entre os indicadores reais (SINISA) e as metas contratuais, para os 68 municípios atendidos pela SANESUL.</p>
+</div>
+
+<div class="row g-4 justify-content-center">
+  <div class="col-md-4">
+    <a href="{{ url_for('contratos.analise_geral') }}" class="text-decoration-none">
+      <div class="card shadow-sm border-0 h-100 text-center p-4" style="transition: transform .15s;">
+        <div class="mb-3">
+          <i class="bi bi-clipboard-data" style="font-size:2.5rem;color:#c98a2c;"></i>
+        </div>
+        <h5 class="text-dark">Análise Geral</h5>
+        <p class="text-muted small mb-0">Panorama de todos os indicadores: quantos municípios estão dentro e fora da meta.</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('contratos.por_municipio') }}" class="text-decoration-none">
+      <div class="card shadow-sm border-0 h-100 text-center p-4" style="transition: transform .15s;">
+        <div class="mb-3">
+          <i class="bi bi-geo-alt" style="font-size:2.5rem;color:#1a9baa;"></i>
+        </div>
+        <h5 class="text-dark">Por Município</h5>
+        <p class="text-muted small mb-0">Veja todos os indicadores de um único município, real x meta, com histórico mensal.</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('contratos.por_indicador') }}" class="text-decoration-none">
+      <div class="card shadow-sm border-0 h-100 text-center p-4" style="transition: transform .15s;">
+        <div class="mb-3">
+          <i class="bi bi-bar-chart" style="font-size:2.5rem;color:#1a9baa;"></i>
+        </div>
+        <h5 class="text-dark">Por Indicador</h5>
+        <p class="text-muted small mb-0">Compare todos os 68 municípios num único indicador, com metas atuais e futuras do contrato.</p>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

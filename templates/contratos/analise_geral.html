@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Análise Geral{% endblock %}
+
+{% block head_extra %}
+<style>
+  .grupo-label {
+    font-size: 1.05rem; font-weight: 800; letter-spacing: .02em;
+    margin: 1.75rem 0 0.9rem;
+    display: flex; align-items: center; gap: 8px;
+    padding-bottom: 6px; border-bottom: 2px solid currentColor;
+  }
+  .grupo-label i { font-size: 1.15rem; }
+  .grupo-label.grupo-label-agua { color: #146b9c; }
+  .grupo-label.grupo-label-esgoto { color: #2f7d4f; }
+  .grupo-label:first-of-type { margin-top: 0.5rem; }
+
+  .donut-card {
+    background: #fff; border-radius: 14px; padding: 1.1rem 1rem;
+    text-align: center; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease;
+    border-left: 4px solid transparent;
+  }
+  .donut-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+  .donut-card.grupo-agua { border-left-color: #146b9c; }
+  .donut-card.grupo-esgoto { border-left-color: #2f7d4f; }
+
+  .donut-titulo { font-weight: 700; font-size: 0.9rem; color: #2d3436; margin-bottom: 10px; }
+  .donut-canvas-box { position: relative; width: 140px; height: 140px; margin: 0 auto; }
+  .donut-centro {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 1.05rem; font-weight: 700; text-align: center;
+  }
+  .donut-legenda { display: flex; justify-content: center; gap: 12px; margin-top: 10px; font-size: 0.76rem; color: #6c7680; }
+  .donut-legenda .pt { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; }
+  .donut-clique-dica { font-size: 0.68rem; color: #adb5bd; margin-top: 6px; }
+
+  .modal-lista { max-height: 320px; overflow-y: auto; }
+  .modal-lista-item { padding: 5px 10px; border-radius: 6px; font-size: 0.86rem; }
+  .modal-lista-item:nth-child(odd) { background: #f8f9fa; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-1"><i class="bi bi-clipboard-data me-2" style="color:#c98a2c;"></i>Contratos — Análise Geral</h4>
+<p class="text-muted small mb-0">Clique em qualquer indicador para ver a lista de municípios.</p>
+
+{# ── Grupo ÁGUA: Cobertura de Água, IPL, IQA ── #}
+<div class="grupo-label grupo-label-agua"><i class="bi bi-droplet-fill"></i>Água</div>
+<div class="row g-3">
+  {% for chave in ['agua', 'ipl', 'iqa'] %}
+    {% set info = resumo[chave] %}
+    <div class="col-md-4">
+      <div class="donut-card grupo-agua shadow-sm" data-bs-toggle="modal" data-bs-target="#modal-{{ chave }}">
+        <div class="donut-titulo">{{ info.label }}</div>
+        <div class="donut-canvas-box">
+          <canvas id="donut-{{ chave }}"></canvas>
+          <div class="donut-centro" style="color:#146b9c;">{{ info.atingiram | length }}/{{ info.total }}</div>
+        </div>
+        <div class="donut-legenda">
+          <span><span class="pt" style="background:#146b9c;"></span>Atingiram {{ info.atingiram | length }}</span>
+          <span><span class="pt" style="background:#cbdae4;"></span>Não {{ info.nao_atingiram | length }}</span>
+        </div>
+        <div class="donut-clique-dica"><i class="bi bi-cursor"></i> clique para ver a lista</div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{# ── Grupo ESGOTO: Cobertura de Esgoto, Tratamento, DBO ── #}
+<div class="grupo-label grupo-label-esgoto"><i class="bi bi-water"></i>Esgoto</div>
+<div class="row g-3">
+  {% for chave in ['esgoto', 'tratamento', 'dbo'] %}
+    {% set info = resumo[chave] %}
+    <div class="col-md-4">
+      <div class="donut-card grupo-esgoto shadow-sm" data-bs-toggle="modal" data-bs-target="#modal-{{ chave }}">
+        <div class="donut-titulo">{{ info.label }}</div>
+        <div class="donut-canvas-box">
+          <canvas id="donut-{{ chave }}"></canvas>
+          <div class="donut-centro" style="color:#2f7d4f;">{{ info.atingiram | length }}/{{ info.total }}</div>
+        </div>
+        <div class="donut-legenda">
+          <span><span class="pt" style="background:#2f7d4f;"></span>Atingiram {{ info.atingiram | length }}</span>
+          <span><span class="pt" style="background:#cfe3d6;"></span>Não {{ info.nao_atingiram | length }}</span>
+        </div>
+        <div class="donut-clique-dica"><i class="bi bi-cursor"></i> clique para ver a lista</div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{# ── Modais: lista completa de municípios por indicador (abre ao clicar no donut) ── #}
+{% for chave, info in resumo.items() %}
+<div class="modal fade" id="modal-{{ chave }}" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ info.label }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <h6 class="text-success mb-2"><i class="bi bi-check-circle-fill me-1"></i>Atingiram ({{ info.atingiram | length }})</h6>
+            <div class="modal-lista">
+              {% for m in info.atingiram %}
+                <div class="modal-lista-item">{{ m }}</div>
+              {% else %}
+                <p class="text-muted small">Nenhum município.</p>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h6 class="text-danger mb-2"><i class="bi bi-x-circle-fill me-1"></i>Não Atingiram ({{ info.nao_atingiram | length }})</h6>
+            <div class="modal-lista">
+              {% for m in info.nao_atingiram %}
+                <div class="modal-lista-item">{{ m }}</div>
+              {% else %}
+                <p class="text-muted small">Nenhum município.</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+  const RESUMO = {{ resumo | tojson }};
+  const CORES = {
+    agua:       ['#146b9c', '#cbdae4'],
+    ipl:        ['#2e86ab', '#cfe0e8'],
+    iqa:        ['#5aa9d6', '#dcebf5'],
+    esgoto:     ['#2f7d4f', '#cfe3d6'],
+    tratamento: ['#4caf7d', '#d9efe2'],
+    dbo:        ['#7fb894', '#e3f0e7'],
+  };
+
+  Object.entries(RESUMO).forEach(function ([chave, info]) {
+    const canvas = document.getElementById('donut-' + chave);
+    if (!canvas) return;
+    const [corAtingiram, corNao] = CORES[chave] || ['#1f2a44', '#c9ced3'];
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Atingiram', 'Não Atingiram'],
+        datasets: [{
+          data: [info.atingiram.length, info.nao_atingiram.length],
+          backgroundColor: [corAtingiram, corNao],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        cutout: '68%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      },
+    });
+  });
+</script>
+{% endblock %}

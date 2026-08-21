@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Por Indicador{% endblock %}
+
+{% block head_extra %}
+<style>
+  .resumo-card { border: none; border-radius: 12px; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+  .resumo-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important; }
+  .resumo-card .card-body { padding: 0.9rem 1rem; }
+  .resumo-titulo { font-size: 0.78rem; font-weight: 700; color: #495057; margin-bottom: 6px; }
+  .resumo-linha { display: flex; justify-content: space-between; align-items: baseline; }
+  .resumo-num-ok { font-size: 1.35rem; font-weight: 700; color: #1a6630; }
+  .resumo-num-fora { font-size: 1.35rem; font-weight: 700; color: #932020; }
+  .resumo-legenda { font-size: 0.68rem; color: #8a8f98; }
+
+  #tabela-indicadores thead th { border-bottom: 2px solid #dee2e6; font-weight: 600; font-size: 0.82rem; color: #495057; text-align: center; }
+  #tabela-indicadores thead th:first-child { text-align: left; }
+  #tabela-indicadores td { text-align: center; vertical-align: middle; font-size: 0.86rem; }
+  #tabela-indicadores td:first-child { text-align: left; font-weight: 600; }
+
+  /* table-responsive por padrão corta (overflow) qualquer coisa que
+     ultrapasse sua borda — inclusive na vertical, o que cortava/escondia
+     o popover. Como a tabela cabe na largura da tela na maioria dos
+     casos, liberamos o overflow pra não cortar o popover; se um dia a
+     tabela precisar rolar horizontalmente de verdade, isso pode voltar
+     a ser 'auto' e o popover passa a usar posicionamento via JS. */
+  .table-responsive { overflow: visible; }
+  .valor-ok    { color: #1a6630; font-weight: 700; }
+  .valor-baixo { color: #932020; font-weight: 700; }
+  .valor-sem   { color: #c1c7cd; }
+
+  /* ── Popover de evolução — substitui o title nativo do navegador
+       (que era minúsculo e horizontal) por algo maior, legível e
+       com os anos empilhados na vertical. Puro CSS (:hover), sem JS. ── */
+  .valor-wrap { position: relative; display: inline-block; cursor: help; }
+  .valor-popover {
+    display: none;
+    position: absolute; z-index: 1000; top: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%);
+    background: #1f2a44; color: #fff; border-radius: 10px;
+    padding: 12px 16px; min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    text-align: left; font-weight: 400;
+  }
+  .valor-wrap:hover .valor-popover { display: block; }
+  .valor-popover::after {
+    content: ""; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    border: 6px solid transparent; border-bottom-color: #1f2a44;
+  }
+  .popover-titulo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; color: #9fb0c9; margin-bottom: 6px; }
+  .popover-linha { display: flex; justify-content: space-between; gap: 16px; font-size: 0.88rem; padding: 2px 0; }
+  .popover-linha .ano { color: #9fb0c9; }
+  .popover-linha .valor { font-weight: 700; }
+
+  #busca-municipio { max-width: 320px; }
+
+  /* ── Modal de detalhe do indicador ── */
+  .modal-lista { max-height: 320px; overflow-y: auto; }
+  .modal-lista-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 10px; border-radius: 6px; font-size: 0.86rem;
+  }
+  .modal-lista-item:nth-child(odd) { background: #f8f9fa; }
+  .modal-lista-valor { font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <h4 class="mb-0"><i class="bi bi-bar-chart me-2" style="color:#1a9baa;"></i>Contratos — Por Indicador</h4>
+
+  <div>
+    <select id="busca-municipio" class="form-select shadow-sm">
+      <option value="">Todos os municípios</option>
+      {% for linha in linhas %}
+        <option value="{{ linha.municipio }}">{{ linha.municipio }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{# ── 6 cards de resumo, um por indicador ── #}
+<div class="row g-3 mb-4">
+  {% for chave, info in indicadores.items() %}
+  {% set resumo = resumo_por_indicador[chave] %}
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card resumo-card shadow-sm h-100" data-bs-toggle="modal" data-bs-target="#modal-{{ chave }}">
+      <div class="card-body">
+        <div class="resumo-titulo">{{ info.label }} <i class="bi bi-arrows-fullscreen" style="font-size:0.65rem;color:#c1c7cd;float:right;"></i></div>
+        <div class="resumo-linha">
+          <span class="resumo-num-ok">{{ resumo.cumpre }}</span>
+          <span class="resumo-legenda">dentro</span>
+        </div>
+        <div class="resumo-linha">
+          <span class="resumo-num-fora">{{ resumo.nao_cumpre }}</span>
+          <span class="resumo-legenda">fora</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Tabela: todos os indicadores, todos os municípios ── #}
+<div class="card shadow-sm border-0">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table id="tabela-indicadores" class="table table-hover mb-0" style="width:100%;">
+        <thead>
+          <tr>
+            <th>Município</th>
+            {% for chave, info in indicadores.items() %}
+              <th>{{ info.label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for linha in linhas %}
+          <tr data-municipio="{{ linha.municipio | lower }}">
+            <td>{{ linha.municipio }}</td>
+            {% for chave in indicadores %}
+              {% set item = linha.indicadores[chave] %}
+              {% if item.real is not none %}
+                <td>
+                  <span class="valor-wrap">
+                    <span class="{{ 'valor-ok' if item.status == 'cumpre' else 'valor-baixo' }}">
+                      {{ "%.2f"|format(item.real) }}
+                    </span>
+                    {% if item.evolucao %}
+                    <div class="valor-popover">
+                      <div class="popover-titulo">Evolução do contrato</div>
+                      {% for ano, valor in item.evolucao %}
+                        <div class="popover-linha"><span class="ano">{{ ano }}</span><span class="valor">{{ "%.2f"|format(valor) }}</span></div>
+                      {% endfor %}
+                    </div>
+                    {% endif %}
+                  </span>
+                </td>
+              {% else %}
+                <td><span class="valor-sem">—</span></td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ── Modais: detalhe de cada indicador, com a lista completa de municípios dentro/fora ── #}
+{% for chave, info in indicadores.items() %}
+{% set resumo = resumo_por_indicador[chave] %}
+<div class="modal fade" id="modal-{{ chave }}" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ info.label }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <h6 class="text-success mb-2"><i class="bi bi-check-circle-fill me-1"></i>Dentro da meta ({{ resumo.cumpre }})</h6>
+            <div class="modal-lista">
+              {% for m in resumo.dentro | sort(attribute='municipio') %}
+                <div class="modal-lista-item">
+                  <span>{{ m.municipio }}</span>
+                  <span class="modal-lista-valor text-success">{{ "%.2f"|format(m.real) if m.real is not none else "—" }}</span>
+                </div>
+              {% else %}
+                <p class="text-muted small">Nenhum município.</p>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h6 class="text-danger mb-2"><i class="bi bi-x-circle-fill me-1"></i>Fora da meta ({{ resumo.nao_cumpre }})</h6>
+            <div class="modal-lista">
+              {% for m in resumo.fora | sort(attribute='municipio') %}
+                <div class="modal-lista-item">
+                  <span>{{ m.municipio }}</span>
+                  <span class="modal-lista-valor text-danger">{{ "%.2f"|format(m.real) if m.real is not none else "—" }}</span>
+                </div>
+              {% else %}
+                <p class="text-muted small">Nenhum município.</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+  $(document).ready(function () {
+    // dom: 'lrtip' remove a caixa de busca padrão do DataTables ('f')
+    // e mantém: comprimento da página (l), tabela (t), info (i), paginação (p).
+    // A busca é feita pela caixa própria (#busca-municipio) — sem botão.
+    // dom: 'lrti' remove a caixa de busca padrão ('f') E a paginação ('p') —
+    // como pageLength é -1 (todos os 68 municípios numa página só), a
+    // paginação nunca teria mais de "1" mesmo, então só ocupava espaço à toa.
+    var tabela = $('#tabela-indicadores').DataTable({
+      pageLength: -1,
+      lengthChange: false,
+      order: [[0, 'asc']],
+      dom: 'lrti',
+      language: {
+        info: "Mostrando _START_ a _END_ de _TOTAL_ municípios",
+        zeroRecords: "Nenhum município encontrado",
+        infoEmpty: "Nenhum município disponível",
+      },
+    });
+
+    // Dropdown: ao escolher um município, filtra a tabela pra ele.
+    // Escolher "Todos os municípios" (valor vazio) limpa o filtro.
+    $('#busca-municipio').on('change', function () {
+      tabela.search(this.value).draw();
+    });
+  });
+</script>
+{% endblock %}

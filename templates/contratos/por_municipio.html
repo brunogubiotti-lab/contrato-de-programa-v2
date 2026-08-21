@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Por Município{% endblock %}
+
+{% block head_extra %}
+<style>
+  .ind-card { border: none; border-radius: 14px; overflow: hidden; transition: transform .15s ease; border-left: 4px solid transparent; }
+  .ind-card.grupo-agua { border-left-color: #146b9c; }
+  .ind-card.grupo-esgoto { border-left-color: #2f7d4f; }
+  .ind-card:hover { transform: translateY(-2px); }
+  .ind-icone {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; color: #fff; flex-shrink: 0;
+  }
+  .ind-barra { height: 8px; border-radius: 4px; background: #e9ecef; overflow: visible; position: relative; }
+  .ind-barra-preenchida { height: 100%; border-radius: 4px; transition: width .4s ease; }
+  .ind-barra-meta {
+    position: absolute; top: -3px; bottom: -3px; width: 3px;
+    background: #2d3436; border-radius: 2px;
+    box-shadow: 0 0 0 1.5px #fff;
+  }
+
+  .status-pill {
+    font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .status-cumpre     { background: #e6f6ef; color: #1a9e63; }
+  .status-nao-cumpre { background: #fdeced; color: #d64545; }
+  .status-sem-dado   { background: #f1f2f4; color: #8a8f98; }
+
+  .resumo-numero { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+  .municipio-select-wrap { max-width: 420px; }
+
+  .grupo-label {
+    font-size: 1.05rem; font-weight: 800; letter-spacing: .02em;
+    margin: 1.75rem 0 0.9rem;
+    display: flex; align-items: center; gap: 8px;
+    padding-bottom: 6px; border-bottom: 2px solid currentColor;
+  }
+  .grupo-label i { font-size: 1.15rem; }
+  .grupo-label.grupo-label-agua { color: #146b9c; }
+  .grupo-label.grupo-label-esgoto { color: #2f7d4f; }
+
+  /* ── Tabela de histórico ── */
+  .hist-table th, .hist-table td { text-align: center; vertical-align: middle; font-size: 0.86rem; }
+  .hist-table thead th { background: #f8f9fa; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; }
+  .hist-table td:first-child, .hist-table th:first-child { text-align: left; }
+  .hist-valor-ok    { color: #1a6630; font-weight: 600; }
+  .hist-valor-baixo { color: #932020; font-weight: 600; }
+  .hist-sem-dado    { color: #c1c7cd; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <h4 class="mb-0"><i class="bi bi-geo-alt me-2" style="color:#1a9baa;"></i>Contratos — Por Município</h4>
+
+  <div class="municipio-select-wrap flex-grow-1" style="max-width:420px;">
+    <select class="form-select shadow-sm"
+            onchange="window.location.href = '{{ url_for('contratos.por_municipio') }}?municipio=' + encodeURIComponent(this.value)">
+      {% for m in municipios %}
+        <option value="{{ m }}" {% if m == municipio_selecionado %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{# ── Resumo rápido: quantos indicadores cumprem / não cumprem ── #}
+{% set total_cumpre = dados.values() | selectattr('status', 'equalto', 'cumpre') | list | length %}
+{% set total_nao_cumpre = dados.values() | selectattr('status', 'equalto', 'nao_cumpre') | list | length %}
+
+<div class="row g-3 mb-2">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="ind-icone" style="background:#1a9baa;"><i class="bi bi-house-door"></i></div>
+        <div>
+          <div class="small text-muted">Município</div>
+          <div class="fw-semibold fs-5">{{ municipio_selecionado }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted">Cumprindo a meta</div>
+        <div class="resumo-numero" style="color:#1a9e63;">{{ total_cumpre }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted">Fora da meta</div>
+        <div class="resumo-numero" style="color:#d64545;">{{ total_nao_cumpre }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Ícone, cor e "teto" de barra por indicador — agora agrupados por família
+     de cor (Água = tons de azul, Esgoto = tons de verde), pra ficar óbvio
+     visualmente qual card pertence a qual grupo mesmo sem ler o rótulo ── #}
+{% set icones = {
+  'agua': ('bi-droplet-fill', '#146b9c', 100),
+  'ipl': ('bi-graph-down-arrow', '#2e86ab', 400),
+  'iqa': ('bi-shield-check', '#5aa9d6', 100),
+  'esgoto': ('bi-water', '#2f7d4f', 100),
+  'tratamento': ('bi-recycle', '#4caf7d', 100),
+  'dbo': ('bi-droplet-half', '#7fb894', 100),
+} %}
+
+{# ── Macro reaproveitada pros dois grupos de card (evita duplicar HTML) ── #}
+{% macro card_indicador(chave, item, grupo) %}
+  {% set icone, cor, teto = icones.get(chave, ('bi-bar-chart', '#1a9baa', 100)) %}
+  <div class="col-md-4">
+    <div class="card ind-card grupo-{{ grupo }} shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="ind-icone" style="background:{{ cor }};"><i class="bi {{ icone }}"></i></div>
+            <div>
+              <div class="fw-semibold">{{ item.label }}</div>
+              <div class="small text-muted">Meta: {{ item.operador }} {{ "%.2f"|format(item.meta) if item.meta is not none else "—" }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-baseline gap-2 mb-2">
+          <span class="fs-3 fw-bold">{{ "%.2f"|format(item.real) if item.real is not none else "—" }}</span>
+        </div>
+
+        <div class="ind-barra mb-3">
+          {% set pct = ((item.real / teto) * 100) if item.real is not none else 0 %}
+          {% set cor_status = {'cumpre': '#1a9e63', 'nao_cumpre': '#d64545', 'sem_dado': '#c1c7cd'}[item.status] %}
+          <div class="ind-barra-preenchida" style="width: {{ [pct, 100] | min }}%; background: {{ cor_status }};"></div>
+          {% if item.meta is not none %}
+            {% set meta_pct = [(item.meta / teto) * 100, 100] | min %}
+            <div class="ind-barra-meta" style="left: {{ meta_pct }}%;" title="Meta: {{ item.operador }} {{ '%.2f'|format(item.meta) }}"></div>
+          {% endif %}
+        </div>
+
+        {% if item.status == 'cumpre' %}
+          <span class="status-pill status-cumpre"><i class="bi bi-check-circle-fill"></i>Cumpre a meta</span>
+        {% elif item.status == 'nao_cumpre' %}
+          <span class="status-pill status-nao-cumpre"><i class="bi bi-x-circle-fill"></i>Não cumpre</span>
+        {% else %}
+          <span class="status-pill status-sem-dado"><i class="bi bi-dash-circle"></i>Sem dado ainda</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+{# ── Grupo ÁGUA: Cobertura de Água, IPL, IQA ── #}
+<div class="grupo-label grupo-label-agua"><i class="bi bi-droplet-fill"></i>Água</div>
+<div class="row g-3">
+  {% for chave in ['agua', 'ipl', 'iqa'] %}
+    {% if chave in dados %}{{ card_indicador(chave, dados[chave], 'agua') }}{% endif %}
+  {% endfor %}
+</div>
+
+{# ── Grupo ESGOTO: Cobertura de Esgoto, Tratamento, DBO ── #}
+<div class="grupo-label grupo-label-esgoto"><i class="bi bi-water"></i>Esgoto</div>
+<div class="row g-3">
+  {% for chave in ['esgoto', 'tratamento', 'dbo'] %}
+    {% if chave in dados %}{{ card_indicador(chave, dados[chave], 'esgoto') }}{% endif %}
+  {% endfor %}
+</div>
+
+{# ── Tabela: Histórico dos Indicadores (jan a jun/2026; jul-dez ainda sem dado) ── #}
+<div class="card shadow-sm border-0 mt-4">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3">Histórico dos Indicadores</h6>
+    <div class="table-responsive">
+      <table class="table hist-table mb-0">
+        <thead>
+          <tr>
+            <th>Indicador</th>
+            <th>Meta</th>
+            <th>jan/26</th><th>fev/26</th><th>mar/26</th>
+            <th>abr/26</th><th>mai/26</th><th>jun/26</th>
+            <th>jul/26</th><th>ago/26</th><th>set/26</th>
+            <th>out/26</th><th>nov/26</th><th>dez/26</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linha in historico %}
+          <tr>
+            <td class="fw-semibold">{{ linha.label }}</td>
+            <td>{{ "%.2f"|format(linha.meta) if linha.meta is not none else "—" }}</td>
+            {% for mes in ['jan','fev','mar','abr','mai','jun'] %}
+              {% set val = linha[mes] %}
+              <td>
+                {% if val is not none %}
+                  {% set ok = (val >= linha.meta) if linha.operador in ('>=', '>') else (val <= linha.meta) %}
+                  <span class="{{ 'hist-valor-ok' if ok else 'hist-valor-baixo' }}">{{ "%.2f"|format(val) }}</span>
+                {% else %}
+                  <span class="hist-sem-dado">—</span>
+                {% endif %}
+              </td>
+            {% endfor %}
+            {% for mes in ['jul','ago','set','out','nov','dez'] %}
+              <td><span class="hist-sem-dado">—</span></td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
