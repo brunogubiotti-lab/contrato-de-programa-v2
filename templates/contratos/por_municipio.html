@@ -26,11 +26,28 @@
     font-size: 1.25rem; color: #fff; flex-shrink: 0;
   }
   .ind-barra { height: 8px; border-radius: 4px; background: #e3e1da; overflow: visible; position: relative; }
-  .ind-barra-preenchida { height: 100%; border-radius: 4px; transition: width .4s ease; }
+  .ind-barra-preenchida { height: 100%; border-radius: 4px; transition: width .4s ease; position: relative; z-index: 1; }
   .ind-barra-meta {
     position: absolute; top: -3px; bottom: -3px; width: 3px;
     background: #2d3436; border-radius: 2px;
     box-shadow: 0 0 0 1.5px #fff;
+    z-index: 2;
+  }
+  /* Zona "dentro da meta" — do início da barra até a marca da meta,
+     em ardósia bem clara. Deixa explícito que preencher até ali é bom,
+     independente do indicador ser "maior é melhor" ou "menor é melhor". */
+  .ind-barra-zona-ok {
+    position: absolute; left: 0; top: 0; height: 100%;
+    background: rgba(74,102,112,0.12);
+    border-radius: 4px 0 0 4px;
+    z-index: 0;
+  }
+  /* Texto de apoio abaixo da barra, tipo "72.36 abaixo da meta" —
+     substitui a necessidade de repetir o valor da meta, que já
+     aparece no cabeçalho do card. */
+  .ind-delta-meta {
+    font-size: 0.78rem; font-weight: 600; color: #4a6670;
+    margin: -6px 0 10px;
   }
 
   /* ── Cores de status (paleta sóbria — mesma da Análise Geral) ──
@@ -150,15 +167,24 @@
           <span class="fs-3 fw-bold">{{ "%.2f"|format(item.real) if item.real is not none else "—" }}</span>
         </div>
 
-        <div class="ind-barra mb-3">
+        <div class="ind-barra mb-1">
           {% set pct = ((item.real / teto) * 100) if item.real is not none else 0 %}
           {% set cor_status = {'cumpre': '#4a6670', 'nao_cumpre': '#8a4a4a', 'sem_dado': '#c1c7cd'}[item.status] %}
-          <div class="ind-barra-preenchida" style="width: {{ [pct, 100] | min }}%; background: {{ cor_status }};"></div>
           {% if item.meta is not none %}
             {% set meta_pct = [(item.meta / teto) * 100, 100] | min %}
+            <div class="ind-barra-zona-ok" style="width: {{ meta_pct }}%;"></div>
             <div class="ind-barra-meta" style="left: {{ meta_pct }}%;" title="Meta: {{ item.operador }} {{ '%.2f'|format(item.meta) }}"></div>
           {% endif %}
+          <div class="ind-barra-preenchida" style="width: {{ [pct, 100] | min }}%; background: {{ cor_status }};"></div>
         </div>
+
+        {% if item.status in ('cumpre', 'nao_cumpre') and item.meta is not none and item.real is not none %}
+          {% set diff = (item.meta - item.real) | abs %}
+          {% set sentido = 'abaixo' if item.operador in ('<', '<=') else 'acima' %}
+          <p class="ind-delta-meta">{{ "%.2f"|format(diff) }} {{ sentido }} da meta</p>
+        {% else %}
+          <div class="mb-3"></div>
+        {% endif %}
 
         {% if item.status == 'cumpre' %}
           <span class="status-pill status-cumpre"><i class="bi bi-check-circle-fill"></i>Cumpre a meta</span>
