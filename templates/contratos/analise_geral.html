@@ -3,25 +3,34 @@
 
 {% block head_extra %}
 <style>
+  /* ── Faixa de seção (Água / Esgoto) ──
+     Antes era um texto com linha embaixo (border-bottom); trocamos por
+     um "chip" com fundo leve, que separa visualmente sem precisar de régua. */
   .grupo-label {
-    font-size: 1.05rem; font-weight: 800; letter-spacing: .02em;
+    font-size: 0.95rem; font-weight: 700; letter-spacing: .02em;
     margin: 1.75rem 0 0.9rem;
-    display: flex; align-items: center; gap: 8px;
-    padding-bottom: 6px; border-bottom: 2px solid currentColor;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 16px; border-radius: 999px;
   }
-  .grupo-label i { font-size: 1.15rem; }
-  .grupo-label.grupo-label-agua { color: #146b9c; }
-  .grupo-label.grupo-label-esgoto { color: #2f7d4f; }
+  .grupo-label i { font-size: 1.05rem; }
+  .grupo-label.grupo-label-agua { background: #e6f1fb; color: #0c447c; }
+  .grupo-label.grupo-label-esgoto { background: #eaf3de; color: #27500a; }
   .grupo-label:first-of-type { margin-top: 0.5rem; }
 
+  /* ── Cores por nível de desempenho (paleta sóbria) ──
+     nivel vem calculado no backend (contratos.py): bom / atencao / critico.
+     Em vez de verde/âmbar/vermelho (semáforo), usamos tons terrosos/ardósia:
+     fundo neutro igual pra todos, diferenciação só na borda + número central. */
   .donut-card {
     background: #fff; border-radius: 14px; padding: 1.1rem 1rem;
     text-align: center; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease;
     border-left: 4px solid transparent;
   }
   .donut-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
-  .donut-card.grupo-agua { border-left-color: #146b9c; }
-  .donut-card.grupo-esgoto { border-left-color: #2f7d4f; }
+
+  .donut-card.nivel-bom { border-left-color: #4a6670; }
+  .donut-card.nivel-atencao { border-left-color: #9c7a45; }
+  .donut-card.nivel-critico { border-left-color: #8a4a4a; }
 
   .donut-titulo { font-weight: 700; font-size: 0.9rem; color: #2d3436; margin-bottom: 10px; }
   .donut-canvas-box { position: relative; width: 140px; height: 140px; margin: 0 auto; }
@@ -29,6 +38,10 @@
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     font-size: 1.05rem; font-weight: 700; text-align: center;
   }
+  .donut-card.nivel-bom .donut-centro { color: #3d525a; }
+  .donut-card.nivel-atencao .donut-centro { color: #7d6136; }
+  .donut-card.nivel-critico .donut-centro { color: #6e3a3a; }
+
   .donut-legenda { display: flex; justify-content: center; gap: 12px; margin-top: 10px; font-size: 0.76rem; color: #6c7680; }
   .donut-legenda .pt { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; }
   .donut-clique-dica { font-size: 0.68rem; color: #adb5bd; margin-top: 6px; }
@@ -50,15 +63,15 @@
   {% for chave in ['agua', 'ipl', 'iqa'] %}
     {% set info = resumo[chave] %}
     <div class="col-md-4">
-      <div class="donut-card grupo-agua shadow-sm" data-bs-toggle="modal" data-bs-target="#modal-{{ chave }}">
+      <div class="donut-card nivel-{{ info.nivel }} shadow-sm" data-bs-toggle="modal" data-bs-target="#modal-{{ chave }}">
         <div class="donut-titulo">{{ info.label }}</div>
         <div class="donut-canvas-box">
           <canvas id="donut-{{ chave }}"></canvas>
-          <div class="donut-centro" style="color:#146b9c;">{{ info.atingiram | length }}/{{ info.total }}</div>
+          <div class="donut-centro">{{ info.pct }}%</div>
         </div>
         <div class="donut-legenda">
-          <span><span class="pt" style="background:#146b9c;"></span>Atingiram {{ info.atingiram | length }}</span>
-          <span><span class="pt" style="background:#cbdae4;"></span>Não {{ info.nao_atingiram | length }}</span>
+          <span>Atingiram {{ info.atingiram | length }}</span>
+          <span>Não {{ info.nao_atingiram | length }}</span>
         </div>
         <div class="donut-clique-dica"><i class="bi bi-cursor"></i> clique para ver a lista</div>
       </div>
@@ -72,15 +85,15 @@
   {% for chave in ['esgoto', 'tratamento', 'dbo'] %}
     {% set info = resumo[chave] %}
     <div class="col-md-4">
-      <div class="donut-card grupo-esgoto shadow-sm" data-bs-toggle="modal" data-bs-target="#modal-{{ chave }}">
+      <div class="donut-card nivel-{{ info.nivel }} shadow-sm" data-bs-toggle="modal" data-bs-target="#modal-{{ chave }}">
         <div class="donut-titulo">{{ info.label }}</div>
         <div class="donut-canvas-box">
           <canvas id="donut-{{ chave }}"></canvas>
-          <div class="donut-centro" style="color:#2f7d4f;">{{ info.atingiram | length }}/{{ info.total }}</div>
+          <div class="donut-centro">{{ info.pct }}%</div>
         </div>
         <div class="donut-legenda">
-          <span><span class="pt" style="background:#2f7d4f;"></span>Atingiram {{ info.atingiram | length }}</span>
-          <span><span class="pt" style="background:#cfe3d6;"></span>Não {{ info.nao_atingiram | length }}</span>
+          <span>Atingiram {{ info.atingiram | length }}</span>
+          <span>Não {{ info.nao_atingiram | length }}</span>
         </div>
         <div class="donut-clique-dica"><i class="bi bi-cursor"></i> clique para ver a lista</div>
       </div>
@@ -132,19 +145,18 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
   const RESUMO = {{ resumo | tojson }};
-  const CORES = {
-    agua:       ['#146b9c', '#cbdae4'],
-    ipl:        ['#2e86ab', '#cfe0e8'],
-    iqa:        ['#5aa9d6', '#dcebf5'],
-    esgoto:     ['#2f7d4f', '#cfe3d6'],
-    tratamento: ['#4caf7d', '#d9efe2'],
-    dbo:        ['#7fb894', '#e3f0e7'],
+  // Cores por nível de desempenho (mesma paleta sóbria do CSS .nivel-*):
+  // [cor da fatia "atingiram", cor da fatia "não atingiram" (mesmo tom, mais claro)]
+  const CORES_POR_NIVEL = {
+    bom:     ['#4a6670', '#c7d2d6'],
+    atencao: ['#9c7a45', '#e3d3ba'],
+    critico: ['#8a4a4a', '#e0c7c7'],
   };
 
   Object.entries(RESUMO).forEach(function ([chave, info]) {
     const canvas = document.getElementById('donut-' + chave);
     if (!canvas) return;
-    const [corAtingiram, corNao] = CORES[chave] || ['#1f2a44', '#c9ced3'];
+    const [corAtingiram, corNao] = CORES_POR_NIVEL[info.nivel] || ['#5f5e5a', '#d3d1c7'];
     new Chart(canvas, {
       type: 'doughnut',
       data: {

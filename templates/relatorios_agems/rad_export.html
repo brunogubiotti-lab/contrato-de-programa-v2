@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>RAD — Relatório Anual de Desempenho — {{ municipio }} {{ ano }}</title>
+<style>
+  :root{
+    --navy:#16213e;
+    --navy-2:#1c2d52;
+    --water:#2f6fb0;
+    --sewer:#16305c;
+    --green:#3f6b47;
+    --green-bg:#e9f2ea;
+    --orange:#c1560e;
+    --orange-bg:#fdefe3;
+    --gray:#5b6472;
+    --gray-bg:#eceef1;
+    --page:#e7ebf0;
+    --card:#f7f8fa;
+    --ink:#1b2434;
+    --line:#e1e5ea;
+
+    --tag-auto:#2e8b57;
+    --tag-auto-bg:#e3f5ea;
+    --tag-manual:#b8860b;
+    --tag-manual-bg:#fbf1db;
+    --tag-laud:#c1440e;
+    --tag-laud-bg:#fdece1;
+    --tag-ext:#6b7280;
+    --tag-ext-bg:#eceef1;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--page);
+    font-family:'Segoe UI',Arial,sans-serif;
+    color:var(--ink);
+    padding:24px 12px 56px;
+  }
+  .sheet{
+    max-width:760px;
+    margin:0 auto;
+    background:#fff;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(22,33,62,0.18);
+  }
+
+  /* ---------- HEADER ---------- */
+  .header{
+    background:var(--navy);
+    color:#fff;
+    text-align:center;
+    padding:22px 20px 16px;
+  }
+  .header h1{
+    margin:0 0 10px;
+    font-size:29px;
+    font-weight:800;
+    letter-spacing:0.5px;
+  }
+  .header .rule{
+    height:1px;
+    background:rgba(255,255,255,0.35);
+    margin:0 auto 12px;
+    max-width:620px;
+  }
+  .header .sub{
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:1px;
+    color:#dbe6f5;
+  }
+
+  /* ---------- LEGEND ---------- */
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:8px;
+    padding:14px 20px;
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+  }
+  .chip{
+    display:flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:20px;
+    font-size:11.5px;font-weight:700;white-space:nowrap;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .chip.auto{background:var(--tag-auto-bg);color:var(--tag-auto);}
+  .chip.auto .dot{background:var(--tag-auto);}
+  .chip.manual{background:var(--tag-manual-bg);color:var(--tag-manual);}
+  .chip.manual .dot{background:var(--tag-manual);}
+  .chip.laud{background:var(--tag-laud-bg);color:var(--tag-laud);}
+  .chip.laud .dot{background:var(--tag-laud);}
+  .chip.ext{background:var(--tag-ext-bg);color:var(--tag-ext);}
+  .chip.ext .dot{background:var(--tag-ext);}
+
+  /* ---------- SECTION BANNERS ---------- */
+  .band{
+    margin:16px 20px 0;
+    border-radius:10px;
+    padding:10px 18px;
+    color:#fff;
+    font-weight:800;
+    font-size:14.5px;
+    text-align:center;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+  .band.navy{background:var(--navy-2);}
+  .band.gray{background:var(--gray);}
+
+  .twin{
+    margin:12px 20px 0;
+    overflow:hidden; /* clearfix */
+  }
+  .twin::after{content:"";display:table;clear:both;}
+  .twin > div, .twin > .band{
+    float:left;
+    width:48.5%;
+  }
+  .twin > div:first-child, .twin > .band:first-child{margin-right:3%;}
+  .twin .band{margin:0;}
+  .twin .band.water{background:var(--water);}
+  .twin .band.sewer{background:var(--orange);}
+
+  /* ---------- CARDS ---------- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:6px 18px;
+    margin:10px 20px 0;
+  }
+  .twin .card{margin:8px 0 0;}
+
+  .row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+    padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .row:last-child{border-bottom:none;}
+  .row-stack{
+    display:block;
+    padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .row-stack:last-child{border-bottom:none;}
+  .row-stack .valtext{
+    margin-top:6px;
+    font-size:14px;
+    font-weight:700;
+    color:var(--navy);
+    line-height:1.5;
+    text-align:left;
+  }
+  .row-stack .valtext.pending{
+    font-size:12px;font-style:italic;font-weight:600;color:#a9b0bb;
+  }
+  .row-stack .valtext.right{
+    text-align:right;
+  }
+  .row .lead{display:flex;align-items:flex-start;gap:8px;min-width:0;}
+  .bullet{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--water);
+    margin-top:5px;flex-shrink:0;
+  }
+  .row.sewer-bullet .bullet{background:var(--sewer);}
+  .txt{min-width:0;}
+  .txt .name{font-size:13px;color:#3b4656;font-weight:600;}
+  .txt .name .hint{display:block;font-size:10.5px;color:#93a0b0;font-weight:600;margin-top:1px;}
+  .valwrap{
+    display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;
+  }
+  .val{
+    font-size:16px;font-weight:800;color:var(--navy);white-space:nowrap;
+  }
+  .val.pending{
+    font-size:12px;font-style:italic;font-weight:600;color:#a9b0bb;
+  }
+  .val.multiline{
+    white-space:normal;word-break:break-word;text-align:right;line-height:1.35;
+  }
+  .valwrap.multiline{
+    max-width:62%;
+  }
+  .badge{
+    font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:9px;white-space:nowrap;
+  }
+  .badge.auto{background:var(--tag-auto-bg);color:var(--tag-auto);}
+  .badge.manual{background:var(--tag-manual-bg);color:var(--tag-manual);}
+  .badge.laud{background:var(--tag-laud-bg);color:var(--tag-laud);}
+  .badge.ext{background:var(--tag-ext-bg);color:var(--tag-ext);}
+
+  /* ---------- METAS ---------- */
+  .metas-grid{
+    margin:12px 20px 0;
+    overflow:hidden;
+  }
+  .metas-grid::after{content:"";display:table;clear:both;}
+  .metas-grid > .metas-card{
+    float:left;
+    width:48.5%;
+  }
+  .metas-grid > .metas-card:first-child{margin-right:3%;}
+  .metas-card{
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .metas-card .head{
+    padding:9px 14px;
+    font-weight:800;
+    font-size:12.5px;
+    color:#fff;
+    text-transform:uppercase;
+    text-align:center;
+  }
+  .metas-card.water .head{background:var(--green);}
+  .metas-card.sewer .head{background:var(--orange);}
+  .metas-card .body{background:var(--card);padding:2px 14px;}
+
+  .ete-note{
+    margin:12px 20px 0;
+    padding:10px 14px;
+    background:var(--tag-laud-bg);
+    border:1px dashed var(--tag-laud);
+    border-radius:8px;
+    font-size:12px;
+    color:#7a2c0a;
+  }
+  .ete-note b{color:var(--tag-laud);}
+
+  .info-note{
+    margin:10px 20px 0;
+    padding:9px 14px;
+    background:#fffaea;
+    border-left:3px solid var(--tag-manual);
+    border-radius:0 8px 8px 0;
+    font-size:11.5px;
+    color:#6b5b1f;
+  }
+
+  /* ---------- INVEST ---------- */
+  .invest-grid{
+    margin:12px 20px 0;
+    overflow:hidden;
+  }
+  .invest-grid::after{content:"";display:table;clear:both;}
+  .invest-grid > .invest-card{
+    float:left;
+    width:31.33%;
+    margin-right:3%;
+  }
+  .invest-grid > .invest-card:last-child{margin-right:0;}
+  .invest-card{
+    border-radius:10px;overflow:hidden;border:1px solid var(--line);
+  }
+  .invest-card .head{
+    background:var(--water);color:#fff;text-align:center;
+    font-weight:800;font-size:12.5px;padding:8px 8px;text-transform:uppercase;
+  }
+  .invest-card.sewer .head{background:var(--sewer);}
+  .invest-card.shared .head{background:var(--gray);}
+  .invest-card .body{
+    background:var(--card);padding:12px 10px;text-align:center;
+  }
+  .invest-card .amount{font-size:16px;font-weight:800;color:var(--navy);}
+  .invest-card .amount .cents{font-size:11px;font-weight:700;}
+
+  .footer{
+    padding:16px 20px 22px;
+    font-size:11px;
+    color:#6b7280;
+    background:var(--gray-bg);
+    border-top:1px solid var(--line);
+    text-align:center;
+  }
+  .footer b{color:var(--navy);}
+
+  /* wkhtmltopdf renderiza em página fixa A4 — sem necessidade de @media */
+</style>
+</head>
+<body>
+
+{% from "relatorios_agems/_ficha_macro.html" import ficha %}
+{{ ficha(municipio, ano, regional, dados) }}
+
+</body>
+</html>

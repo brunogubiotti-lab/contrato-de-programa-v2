@@ -4,16 +4,28 @@
 
 {% block head_extra %}
 <style>
-  .ind-card { border: none; border-radius: 14px; overflow: hidden; transition: transform .15s ease; border-left: 4px solid transparent; }
+  /* ── Card de indicador ──
+     Fundo levemente destacado do branco puro (mesmo tom bege claro usado
+     em Análise Geral), sombra mais suave e cantos mais arredondados —
+     deixa o card com mais "corpo" sem pesar visualmente. */
+  .ind-card {
+    background: #fff; border: none; border-radius: 16px; overflow: hidden;
+    transition: transform .15s ease, box-shadow .15s ease;
+    border-left: 4px solid transparent;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .ind-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+
+  /* Borda lateral por grupo (identidade Água/Esgoto — mantém o ícone colorido) */
   .ind-card.grupo-agua { border-left-color: #146b9c; }
   .ind-card.grupo-esgoto { border-left-color: #2f7d4f; }
-  .ind-card:hover { transform: translateY(-2px); }
+
   .ind-icone {
     width: 44px; height: 44px; border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
     font-size: 1.25rem; color: #fff; flex-shrink: 0;
   }
-  .ind-barra { height: 8px; border-radius: 4px; background: #e9ecef; overflow: visible; position: relative; }
+  .ind-barra { height: 8px; border-radius: 4px; background: #e3e1da; overflow: visible; position: relative; }
   .ind-barra-preenchida { height: 100%; border-radius: 4px; transition: width .4s ease; }
   .ind-barra-meta {
     position: absolute; top: -3px; bottom: -3px; width: 3px;
@@ -21,33 +33,38 @@
     box-shadow: 0 0 0 1.5px #fff;
   }
 
+  /* ── Cores de status (paleta sóbria — mesma da Análise Geral) ──
+     Antes eram verde/vermelho tipo semáforo; agora ardósia/vinho/cinza,
+     usadas na borda da barra preenchida, no pill de status e no card-resumo. */
   .status-pill {
     font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;
     display: inline-flex; align-items: center; gap: 4px;
   }
-  .status-cumpre     { background: #e6f6ef; color: #1a9e63; }
-  .status-nao-cumpre { background: #fdeced; color: #d64545; }
-  .status-sem-dado   { background: #f1f2f4; color: #8a8f98; }
+  .status-cumpre     { background: #e2e8ea; color: #3d525a; }
+  .status-nao-cumpre { background: #ecdede; color: #6e3a3a; }
+  .status-sem-dado   { background: #eae8e2; color: #8a8f98; }
 
   .resumo-numero { font-size: 1.9rem; font-weight: 700; line-height: 1; }
   .municipio-select-wrap { max-width: 420px; }
 
+  /* ── Faixa de seção (Água / Esgoto) ──
+     Chip com fundo leve em vez de texto com linha embaixo. */
   .grupo-label {
-    font-size: 1.05rem; font-weight: 800; letter-spacing: .02em;
+    font-size: 0.95rem; font-weight: 700; letter-spacing: .02em;
     margin: 1.75rem 0 0.9rem;
-    display: flex; align-items: center; gap: 8px;
-    padding-bottom: 6px; border-bottom: 2px solid currentColor;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 16px; border-radius: 999px;
   }
-  .grupo-label i { font-size: 1.15rem; }
-  .grupo-label.grupo-label-agua { color: #146b9c; }
-  .grupo-label.grupo-label-esgoto { color: #2f7d4f; }
+  .grupo-label i { font-size: 1.05rem; }
+  .grupo-label.grupo-label-agua { background: #e6f1fb; color: #0c447c; }
+  .grupo-label.grupo-label-esgoto { background: #eaf3de; color: #27500a; }
 
   /* ── Tabela de histórico ── */
   .hist-table th, .hist-table td { text-align: center; vertical-align: middle; font-size: 0.86rem; }
   .hist-table thead th { background: #f8f9fa; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; }
   .hist-table td:first-child, .hist-table th:first-child { text-align: left; }
-  .hist-valor-ok    { color: #1a6630; font-weight: 600; }
-  .hist-valor-baixo { color: #932020; font-weight: 600; }
+  .hist-valor-ok    { color: #1a9e63; font-weight: 700; }
+  .hist-valor-baixo { color: #d64545; font-weight: 700; }
   .hist-sem-dado    { color: #c1c7cd; }
 </style>
 {% endblock %}
@@ -87,7 +104,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <div class="small text-muted">Cumprindo a meta</div>
-        <div class="resumo-numero" style="color:#1a9e63;">{{ total_cumpre }}</div>
+        <div class="resumo-numero" style="color:#3d525a;">{{ total_cumpre }}</div>
       </div>
     </div>
   </div>
@@ -95,7 +112,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <div class="small text-muted">Fora da meta</div>
-        <div class="resumo-numero" style="color:#d64545;">{{ total_nao_cumpre }}</div>
+        <div class="resumo-numero" style="color:#6e3a3a;">{{ total_nao_cumpre }}</div>
       </div>
     </div>
   </div>
@@ -135,7 +152,7 @@
 
         <div class="ind-barra mb-3">
           {% set pct = ((item.real / teto) * 100) if item.real is not none else 0 %}
-          {% set cor_status = {'cumpre': '#1a9e63', 'nao_cumpre': '#d64545', 'sem_dado': '#c1c7cd'}[item.status] %}
+          {% set cor_status = {'cumpre': '#4a6670', 'nao_cumpre': '#8a4a4a', 'sem_dado': '#c1c7cd'}[item.status] %}
           <div class="ind-barra-preenchida" style="width: {{ [pct, 100] | min }}%; background: {{ cor_status }};"></div>
           {% if item.meta is not none %}
             {% set meta_pct = [(item.meta / teto) * 100, 100] | min %}

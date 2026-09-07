@@ -1,0 +1,599 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios AGEMS — RAD{% endblock %}
+
+{% block head_extra %}
+<style>
+:root{
+    --navy:#16213e;
+    --navy-2:#1c2d52;
+    --water:#2f6fb0;
+    --sewer:#16305c;
+    --green:#3f6b47;
+    --green-bg:#e9f2ea;
+    --orange:#c1560e;
+    --orange-bg:#fdefe3;
+    --gray:#5b6472;
+    --gray-bg:#eceef1;
+    --page:#e7ebf0;
+    --card:#f7f8fa;
+    --ink:#1b2434;
+    --line:#e1e5ea;
+
+    --tag-auto:#2e8b57;
+    --tag-auto-bg:#e3f5ea;
+    --tag-manual:#b8860b;
+    --tag-manual-bg:#fbf1db;
+    --tag-laud:#c1440e;
+    --tag-laud-bg:#fdece1;
+    --tag-ext:#6b7280;
+    --tag-ext-bg:#eceef1;
+  }
+.rad-sheet *{box-sizing:border-box;}.rad-sheet{
+    margin:0;
+    background:var(--page);
+    font-family:'Segoe UI',Arial,sans-serif;
+    color:var(--ink);
+    padding:24px 12px 56px;
+  }.rad-sheet .sheet{
+    max-width:760px;
+    margin:0 auto;
+    background:#fff;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(22,33,62,0.18);
+  }.rad-sheet /* ---------- HEADER ---------- */
+  .header{
+    background:var(--navy);
+    color:#fff;
+    text-align:center;
+    padding:22px 20px 16px;
+  }.rad-sheet .header h1{
+    margin:0 0 10px;
+    font-size:29px;
+    font-weight:800;
+    letter-spacing:0.5px;
+  }.rad-sheet .header .rule{
+    height:1px;
+    background:rgba(255,255,255,0.35);
+    margin:0 auto 12px;
+    max-width:620px;
+  }.rad-sheet .header .sub{
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:1px;
+    color:#dbe6f5;
+  }.rad-sheet /* ---------- LEGEND ---------- */
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:8px;
+    padding:14px 20px;
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+  }.rad-sheet .chip{
+    display:flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:20px;
+    font-size:11.5px;font-weight:700;white-space:nowrap;
+  }.rad-sheet .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}.rad-sheet .chip.auto{background:var(--tag-auto-bg);color:var(--tag-auto);}.rad-sheet .chip.auto .dot{background:var(--tag-auto);}.rad-sheet .chip.manual{background:var(--tag-manual-bg);color:var(--tag-manual);}.rad-sheet .chip.manual .dot{background:var(--tag-manual);}.rad-sheet .chip.laud{background:var(--tag-laud-bg);color:var(--tag-laud);}.rad-sheet .chip.laud .dot{background:var(--tag-laud);}.rad-sheet .chip.ext{background:var(--tag-ext-bg);color:var(--tag-ext);}.rad-sheet .chip.ext .dot{background:var(--tag-ext);}.rad-sheet /* ---------- SECTION BANNERS ---------- */
+  .band{
+    margin:16px 20px 0;
+    border-radius:10px;
+    padding:10px 18px;
+    color:#fff;
+    font-weight:800;
+    font-size:14.5px;
+    text-align:center;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }.rad-sheet .band.navy{background:var(--navy-2);}.rad-sheet .band.gray{background:var(--gray);}.rad-sheet .twin{
+    margin:12px 20px 0;
+    overflow:hidden; /* clearfix */
+  }.rad-sheet .twin::after{content:"";display:table;clear:both;}.rad-sheet .twin > div, .rad-sheet .twin > .band{
+    float:left;
+    width:48.5%;
+  }.rad-sheet .twin > div:first-child, .rad-sheet .twin > .band:first-child{margin-right:3%;}.rad-sheet .twin .band{margin:0;}.rad-sheet .twin .band.water{background:var(--water);}.rad-sheet .twin .band.sewer{background:var(--sewer);}.rad-sheet /* ---------- CARDS ---------- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:6px 18px;
+    margin:10px 20px 0;
+  }.rad-sheet .twin .card{margin:8px 0 0;}.rad-sheet .row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+    padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }.rad-sheet .row:last-child{border-bottom:none;}.rad-sheet .row-stack{display:block;padding:10px 0;border-bottom:1px solid var(--line);}.rad-sheet .row-stack:last-child{border-bottom:none;}.rad-sheet .row-stack .valtext{margin-top:6px;font-size:14px;font-weight:700;color:var(--navy);line-height:1.5;text-align:left;}.rad-sheet .row-stack .valtext.pending{font-size:12px;font-style:italic;font-weight:600;color:#a9b0bb;}.rad-sheet .row-stack .valtext.right{text-align:right;}.rad-sheet .row .lead{display:flex;align-items:flex-start;gap:8px;min-width:0;}.rad-sheet .bullet{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--water);
+    margin-top:5px;flex-shrink:0;
+  }.rad-sheet .row.sewer-bullet .bullet{background:var(--sewer);}.rad-sheet .txt{min-width:0;}.rad-sheet .txt .name{font-size:13px;color:#3b4656;font-weight:600;}.rad-sheet .txt .name .hint{display:block;font-size:10.5px;color:#93a0b0;font-weight:600;margin-top:1px;}.rad-sheet .valwrap{
+    display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;
+  }.rad-sheet .val{
+    font-size:16px;font-weight:800;color:var(--navy);white-space:nowrap;
+  }.rad-sheet .val.multiline{
+    white-space:normal;word-break:break-word;text-align:right;line-height:1.35;
+  }.rad-sheet .valwrap.multiline{
+    max-width:62%;
+  }.rad-sheet .val.pending{
+    font-size:12px;font-style:italic;font-weight:600;color:#a9b0bb;
+  }.rad-sheet .badge{
+    font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:9px;white-space:nowrap;
+  }.rad-sheet .badge.auto{background:var(--tag-auto-bg);color:var(--tag-auto);}.rad-sheet .badge.manual{background:var(--tag-manual-bg);color:var(--tag-manual);}.rad-sheet .badge.laud{background:var(--tag-laud-bg);color:var(--tag-laud);}.rad-sheet .badge.ext{background:var(--tag-ext-bg);color:var(--tag-ext);}.rad-sheet /* ---------- METAS ---------- */
+  .metas-grid{
+    margin:12px 20px 0;
+    overflow:hidden;
+  }.rad-sheet .metas-grid::after{content:"";display:table;clear:both;}.rad-sheet .metas-grid > .metas-card{
+    float:left;
+    width:48.5%;
+  }.rad-sheet .metas-grid > .metas-card:first-child{margin-right:3%;}.rad-sheet .metas-card{
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }.rad-sheet .metas-card .head{
+    padding:9px 14px;
+    font-weight:800;
+    font-size:12.5px;
+    color:#fff;
+    text-transform:uppercase;
+    text-align:center;
+  }.rad-sheet .metas-card.water .head{background:var(--green);}.rad-sheet .metas-card.sewer .head{background:var(--orange);}.rad-sheet .metas-card .body{background:var(--card);padding:2px 14px;}.rad-sheet .ete-note{
+    margin:12px 20px 0;
+    padding:10px 14px;
+    background:var(--tag-laud-bg);
+    border:1px dashed var(--tag-laud);
+    border-radius:8px;
+    font-size:12px;
+    color:#7a2c0a;
+  }.rad-sheet .ete-note b{color:var(--tag-laud);}.rad-sheet .info-note{
+    margin:10px 20px 0;
+    padding:9px 14px;
+    background:#fffaea;
+    border-left:3px solid var(--tag-manual);
+    border-radius:0 8px 8px 0;
+    font-size:11.5px;
+    color:#6b5b1f;
+  }.rad-sheet /* ---------- INVEST ---------- */
+  .invest-grid{
+    margin:12px 20px 0;
+    overflow:hidden;
+  }.rad-sheet .invest-grid::after{content:"";display:table;clear:both;}.rad-sheet .invest-grid > .invest-card{
+    float:left;
+    width:31.33%;
+    margin-right:3%;
+  }.rad-sheet .invest-grid > .invest-card:last-child{margin-right:0;}.rad-sheet .invest-card{
+    border-radius:10px;overflow:hidden;border:1px solid var(--line);
+  }.rad-sheet .invest-card .head{
+    background:var(--water);color:#fff;text-align:center;
+    font-weight:800;font-size:12.5px;padding:8px 8px;text-transform:uppercase;
+  }.rad-sheet .invest-card.sewer .head{background:var(--sewer);}.rad-sheet .invest-card.shared .head{background:var(--gray);}.rad-sheet .invest-card .body{
+    background:var(--card);padding:12px 10px;text-align:center;
+  }.rad-sheet .invest-card .amount{font-size:16px;font-weight:800;color:var(--navy);}.rad-sheet .invest-card .amount .cents{font-size:11px;font-weight:700;}.rad-sheet .footer{
+    padding:16px 20px 22px;
+    font-size:11px;
+    color:#6b7280;
+    background:var(--gray-bg);
+    border-top:1px solid var(--line);
+    text-align:center;
+  }.rad-sheet .footer b{color:var(--navy);}
+
+  /* wkhtmltopdf renderiza em página fixa A4 — sem necessidade de @media */
+
+
+  /* Ajustes de integração com o SISPLAN (fora do "sheet", não existiam no mockup) */
+  .rad-toolbar {
+    max-width: 1180px; margin: 0 auto 14px; display:flex; gap:14px;
+    align-items:center; flex-wrap:wrap; justify-content:space-between;
+  }
+  .rad-toolbar select { min-width: unset; }
+  .rad-actions {
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    flex: 1 1 auto; justify-content:flex-end;
+  }
+  /* Alterações no RAD 2025, item 1 ("aba do sistema"): os 2 botões de
+     exportar + o dropdown de validação cresciam só o suficiente para
+     caber o texto, deixando um vão enorme de espaço vazio à direita
+     dos filtros em telas largas. Cada um agora cresce em proporção
+     igual (flex:1) até um teto de 260px, preenchendo bem a largura. */
+  .rad-actions > a.btn, .rad-actions > .dropdown {
+    flex: 1 1 200px; max-width: 260px;
+  }
+  .rad-actions > .dropdown { display:flex; }
+  .rad-actions > .dropdown > button { width:100%; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{#
+  Macro simples: exibe o valor ou "a preencher" (itálico) quando None/vazio.
+  Uso: {{ fmt(dados.captacao) }}
+#}
+{% macro fmt(v, sufixo='', classe_extra='') -%}
+  {%- if v is none or v == '' -%}
+    <span class="val pending">a preencher</span>
+  {%- else -%}
+    <span class="val {{ classe_extra }}">{{ v | brnum }}{{ sufixo }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+<div class="rad-toolbar">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <select id="rad-select-municipio" class="form-select shadow-sm" style="width:auto; min-width:220px; flex:0 0 auto;"
+            onchange="radAtualizarFiltros()">
+      <option value="{{ todos_municipios_valor }}" {% if exibir_todos %}selected{% endif %}>
+        📋 {{ label_todos_municipios }}
+      </option>
+      {% for m in municipios %}
+        <option value="{{ m }}" {% if m == municipio_selecionado %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+    <select id="rad-select-ano" class="form-select shadow-sm" style="width:auto; min-width:120px; flex:0 0 auto;"
+            onchange="radAtualizarFiltros()">
+      {% for a in anos_disponiveis %}
+        <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="rad-actions">
+    <a class="btn btn-success btn-sm"
+       href="{{ url_for('relatorios_agems.exportar_excel') }}?municipio={{ municipio_selecionado | urlencode }}&ano={{ ano }}">
+      <i class="bi bi-file-earmark-excel me-1"></i>
+      {% if exibir_todos %}Exportar Excel (.zip — todos){% else %}Exportar Excel ({{ municipio_selecionado }}){% endif %}
+    </a>
+    <a class="btn btn-danger btn-sm"
+       href="{{ url_for('relatorios_agems.exportar_html') }}?municipio={{ municipio_selecionado | urlencode }}&ano={{ ano }}">
+      <i class="bi bi-filetype-html me-1"></i>
+      {% if exibir_todos %}Exportar HTML (.zip — todos){% else %}Exportar HTML ({{ municipio_selecionado }}){% endif %}
+    </a>
+
+    <div class="dropdown">
+      <button class="btn btn-outline-dark btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-clipboard-check me-1"></i>Relatório de Validação
+      </button>
+      <ul class="dropdown-menu">
+        <li><h6 class="dropdown-header">
+          {% if exibir_todos %}Por área — todos os municípios (.zip){% else %}Por área — {{ municipio_selecionado }}{% endif %}
+        </h6></li>
+        {% for chave, nome in areas_validacao.items() %}
+        <li><a class="dropdown-item" href="{{ url_for('relatorios_agems.exportar_validacao_area', area=chave) }}?municipio={{ municipio_selecionado | urlencode }}&ano={{ ano }}">
+          <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ nome }}
+        </a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+function radAtualizarFiltros(){
+  const municipio = document.getElementById('rad-select-municipio').value;
+  const ano = document.getElementById('rad-select-ano').value;
+  const params = new URLSearchParams({municipio, ano});
+  window.location.href = "{{ url_for('relatorios_agems.rad') }}?" + params.toString();
+}
+</script>
+
+{% if exibir_todos %}
+<div class="rad-sheet">
+  <div class="sheet" style="padding:40px 30px; text-align:center;">
+    <i class="bi bi-collection" style="font-size:2.2rem; color:#16213e;"></i>
+    <h3 style="margin:14px 0 6px; color:#16213e;">Todos os Municípios selecionado</h3>
+    <p style="color:#5b6472; margin:0;">
+      Não há uma ficha única para exibir aqui — use os botões acima para
+      baixar o Excel, o HTML ou o Relatório de Validação com 1 arquivo
+      por município, todos dentro de um <code>.zip</code>.
+    </p>
+  </div>
+</div>
+{% else %}
+<div class="rad-sheet">
+<div class="sheet">
+
+  <div class="header">
+    <h1>RAD - RELATÓRIO ANUAL DE DESEMPENHO</h1>
+    <div class="rule"></div>
+    <div class="sub">MUNICÍPIO: {{ municipio.upper() }} - {{ ano }}</div>
+  </div>
+
+  <div class="legend">
+    <span class="chip auto"><span class="dot"></span>Automático (código INF/IND/AG/ES/FN)</span>
+    <span class="chip manual"><span class="dot"></span>Manual / valor fixo / GECONT</span>
+    <span class="chip laud"><span class="dot"></span>Laudenise</span>
+    <span class="chip ext"><span class="dot"></span>Base externa (contratos)</span>
+  </div>
+
+  <!-- I - INFORMAÇÕES DO MUNICÍPIO -->
+  <div class="band navy">Informações do Município</div>
+  <div class="card">
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">População Urbana<span class="hint">INF8001</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.pop_urbana, ' hab') }}<span class="badge auto">Automático</span></div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Habitantes por domicílio<span class="hint">INF8005</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.habitantes_domicilio) }}<span class="badge auto">Automático</span></div>
+    </div>
+    <div class="row-stack">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Localidades Atendidas</span> <span class="badge manual">Manual</span></div></div>
+      {% if dados.localidades_atendidas %}
+      <div class="valtext right">
+        {%- for loc in dados.localidades_atendidas.split(',') -%}
+        {{ loc.strip() }}{% if not loop.last %}<br>{% endif %}
+        {%- endfor -%}
+      </div>
+      {% else %}
+      <div class="valtext pending">a preencher</div>
+      {% endif %}
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Crescimento Vegetativo<span class="hint">INF8004 (dez/atual − dez/anterior)</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.cresc_vegetativo, ' hab') }}<span class="badge auto">Automático</span></div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Regional<span class="hint">SANESUL_Regionais_v1</span></span></div></div>
+      <div class="valwrap">{{ fmt(regional) }}<span class="badge auto">Automático</span></div>
+    </div>
+  </div>
+
+  <!-- II - SISTEMAS DE ÁGUA / ESGOTO -->
+  <div class="twin">
+    <div class="band water">Sistemas de Água</div>
+    <div class="band sewer">Sistemas de Esgoto</div>
+  </div>
+  <div class="twin">
+    <div class="card">
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Pop. atendida<span class="hint">INF8006 → AG026</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.pop_atendida_agua_hab) }}{% if dados.pop_atendida_agua_pct %} <span class="val">({{ dados.pop_atendida_agua_pct | brnum }}%)</span>{% endif %}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Captação<span class="hint">nome da fonte</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.captacao) }}<span class="badge manual">Manual</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">ETA<span class="hint">identificação</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.eta) }}<span class="badge manual">Manual</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Poços<span class="hint">INF26</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.pocos) }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Extensão de Rede — Água<span class="hint">INF33 → AG005</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.extensao_rede_agua_km, ' km') }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Reservação<span class="hint">INF54 + INF55</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.reservacao_m3, ' m³') }}<span class="badge auto">Automático</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row sewer-bullet">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Pop. atendida<span class="hint">IND8301</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.pop_atendida_esgoto_hab) }}{% if dados.pop_atendida_esgoto_pct %} <span class="val">({{ dados.pop_atendida_esgoto_pct | brnum }}%)</span>{% endif %}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row sewer-bullet">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Tratamento<span class="hint">valor fixo</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.tratamento_esgoto_pct, '%') }}<span class="badge manual">Manual/fixo</span></div>
+      </div>
+      {% if dados.qtd_etes <= 1 %}
+      <div class="row sewer-bullet">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">ETE<span class="hint">nome / tratamento / eficiência</span></span></div></div>
+        <div class="valwrap">
+          {% if dados.etes %}
+          <span class="val">{{ dados.etes[0].nome }}</span>
+          <span class="val" style="font-size:11px;font-weight:700;color:#5b6472;">Tratamento {{ (dados.etes[0].tratamento_pct | brnum ~ '%') if dados.etes[0].tratamento_pct is not none else 'a preencher' }} · Eficiência {{ (dados.etes[0].eficiencia_pct | brnum ~ '%') if dados.etes[0].eficiencia_pct is not none else 'a preencher' }}</span>
+          {% else %}
+          <span class="val pending">a preencher</span>
+          {% endif %}
+          <span class="badge manual">Manual</span>
+        </div>
+      </div>
+      {% endif %}
+      <div class="row sewer-bullet">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Rede<span class="hint">INF34 → ES004</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.extensao_rede_esgoto_km, ' km') }}<span class="badge auto">Automático</span></div>
+      </div>
+    </div>
+  </div>
+
+  {% if dados.qtd_etes > 1 %}
+  <div class="band gray" style="margin-top:16px;">ETEs do Município ({{ dados.qtd_etes }}) — tratamento e eficiência individuais</div>
+  <div class="card">
+    {% for ete in dados.etes %}
+    <div class="row sewer-bullet">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">ETE {{ loop.index }} de {{ dados.qtd_etes }}<span class="hint">{{ ete.nome }}</span></span></div></div>
+      <div class="valwrap">
+        <span class="val" style="font-size:13px;">Tratamento {{ (ete.tratamento_pct | brnum ~ '%') if ete.tratamento_pct is not none else 'a preencher' }} · Eficiência {{ (ete.eficiencia_pct | brnum ~ '%') if ete.eficiencia_pct is not none else 'a preencher' }}</span>
+        <span class="badge manual">Manual</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- III - INDICADORES OPERACIONAIS -->
+  <div class="band navy">Indicadores Operacionais</div>
+  <div class="twin">
+    <div class="card">
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Perdas na Distribuição<span class="hint">fórmula INF1/67/9642/71/78</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.indice_perdas_distribuicao_pct, '%') }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Índice de Hidrometração<span class="hint">INF1003 / INF1065</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.indice_hidrometracao_pct, '%') }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Índice de Macromedição<span class="hint">IND8008</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.indice_macromedicao_pct, '%') }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Tarifa Média Água<span class="hint">FN002/AG011</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.tarifa_media_agua, ' R$/m³') }}<span class="badge auto">Automático</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Volume Produzido<span class="hint">INF1 → AG006</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.volume_produzido_m3ano, ' m³/ano') }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Consumo Médio/Economia<span class="hint">fórmula AG010–AG019/AG003</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.consumo_medio_economia) }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Ticket Médio Total<span class="hint">fórmula INF9652/3164/3170</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.ticket_medio_total) }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Tarifa Média Esgoto<span class="hint">FN003/ES007</span></span></div></div>
+        <div class="valwrap">{{ fmt(dados.tarifa_media_esgoto, ' R$/m³') }}<span class="badge auto">Automático</span></div>
+      </div>
+      <div class="row">
+        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Ligações Reais Faturadas / Não Faturadas<span class="hint">INF9603 / INF3001</span></span></div></div>
+        <div class="valwrap">
+          {% if dados.ligacoes_faturadas is not none or dados.ligacoes_nao_faturadas is not none %}
+          <span class="val">{{ (dados.ligacoes_faturadas | brnum) if dados.ligacoes_faturadas is not none else '?' }} / {{ (dados.ligacoes_nao_faturadas | brnum) if dados.ligacoes_nao_faturadas is not none else '?' }}</span>
+          {% else %}
+          <span class="val pending">a preencher</span>
+          {% endif %}
+          <span class="badge auto">Automático</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IV - METAS CONTRATUAIS -->
+  <div class="band gray" style="margin-top:16px;">Metas Contratuais</div>
+  <div class="metas-grid">
+    <div class="metas-card water">
+      <div class="head">Abast. de Água</div>
+      <div class="body">
+        <div class="row">
+          <div class="lead"><div class="txt"><span class="name">Cobertura<span class="hint">IND8300</span></span></div></div>
+          <div class="valwrap">{{ fmt(dados.cobertura_agua_atual_pct, '%') }}<span class="badge auto">Automático</span></div>
+        </div>
+        <div class="row">
+          <div class="lead"><div class="txt"><span class="name">Perdas<span class="hint">fórmula AG/INF</span></span></div></div>
+          <div class="valwrap">{{ fmt(dados.perdas_lig_dia_atual, ' l/lig/dia') }}<span class="badge auto">Automático</span></div>
+        </div>
+        <div class="row">
+          <div class="lead"><div class="txt"><span class="name">IQA<span class="hint">planilha de controle</span></span></div></div>
+          <div class="valwrap">{{ fmt(dados.iqa) }}<span class="badge manual">Manual</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="metas-card sewer">
+      <div class="head">Esgotamento Sanitário</div>
+      <div class="body">
+        <div class="row">
+          <div class="lead"><div class="txt"><span class="name">Cobertura<span class="hint">IND8301</span></span></div></div>
+          <div class="valwrap">{{ fmt(dados.cobertura_esgoto_atual_pct, '%') }}<span class="badge auto">Automático</span></div>
+        </div>
+        <div class="row">
+          <div class="lead"><div class="txt"><span class="name">Tratamento<span class="hint">valor fixo</span></span></div></div>
+          <div class="valwrap">{{ fmt(dados.tratamento_esgoto_atual_pct, '%') }}<span class="badge manual">Manual/fixo</span></div>
+        </div>
+        <div class="row">
+          <div class="lead"><div class="txt"><span class="name">Eficiência<span class="hint">Relatório SIBO (DBO)</span></span></div></div>
+          <div class="valwrap">{{ fmt(dados.eficiencia_tratamento) }}<span class="badge manual">Manual</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V - INVESTIMENTOS REALIZADOS -->
+  <div class="band navy" style="margin-top:16px;">Investimentos Realizados</div>
+  <div class="invest-grid">
+    <div class="invest-card">
+      <div class="head">Água</div>
+      <div class="body">
+        <div class="amount">{{ 'R$ {:,.2f}'.format(dados.investimento_total_agua).replace(',', 'X').replace('.', ',').replace('X', '.') if dados.investimento_total_agua is not none else 'a preencher' }}</div>
+        <div style="margin-top:6px;"><span class="badge auto">FN023/INF8388 · Automático</span></div>
+      </div>
+    </div>
+    <div class="invest-card sewer">
+      <div class="head">Esgoto</div>
+      <div class="body">
+        <div class="amount">{{ 'R$ {:,.2f}'.format(dados.investimento_total_esgoto).replace(',', 'X').replace('.', ',').replace('X', '.') if dados.investimento_total_esgoto is not none else 'a preencher' }}</div>
+        <div style="margin-top:6px;"><span class="badge auto">FN024/INF8389 · Automático</span></div>
+      </div>
+    </div>
+    <div class="invest-card shared">
+      <div class="head">Compartilhado</div>
+      <div class="body">
+        <div class="amount">{{ 'R$ {:,.2f}'.format(dados.outros_investimentos).replace(',', 'X').replace('.', ',').replace('X', '.') if dados.outros_investimentos is not none else 'a preencher' }}</div>
+        <div style="margin-top:6px;"><span class="badge auto">FN025/INF8390 · Automático</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Principais obras e melhorias operacionais (água e esgoto)</span></div></div>
+      <div class="valwrap">{{ fmt(dados.obras_agua) }}<span class="badge laud">Laudenise</span></div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Investimento por fonte (própria/onerosa/não onerosa)<span class="hint">GECONT</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.invest_fonte_propria_agua) }}<span class="badge manual">Manual</span></div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Ativos compartilhados (construção, veículos, maquinário, reforma, obras andamento)<span class="hint">GECONT</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.construcao_compartilhado) }}<span class="badge manual">Manual</span></div>
+    </div>
+  </div>
+
+  <!-- VI - DADOS CONTRATUAIS -->
+  <div class="band gray" style="margin-top:16px;">Dados Contratuais</div>
+  <div class="card">
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Convênio nº<span class="hint">base_dados_sisplan / contratos_programa</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.num_convenio_agems) }}<span class="badge ext">Base externa</span></div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Convênio — Assinatura / Vigência<span class="hint">base_dados_sisplan / contratos_programa</span></span></div></div>
+      <div class="valwrap">
+        {% if dados.data_assinatura_convenio or dados.data_expiracao_convenio %}
+          <span class="val">{{ dados.data_assinatura_convenio or '?' }} até {{ dados.data_expiracao_convenio or '?' }}</span>
+        {% else %}
+          <span class="val pending">a preencher</span>
+        {% endif %}
+        <span class="badge ext">Base externa</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Contrato de Programa nº<span class="hint">base_dados_sisplan / contratos_programa</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.num_contrato_programa) }}<span class="badge ext">Base externa</span></div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Contrato de Programa — Assinatura / Vigência<span class="hint">base_dados_sisplan / contratos_programa</span></span></div></div>
+      <div class="valwrap">
+        {% if dados.data_assinatura_cp or dados.data_expiracao_cp %}
+          <span class="val">{{ dados.data_assinatura_cp or '?' }} até {{ dados.data_expiracao_cp or '?' }}{% if dados.duracao_anos_cp %} ({{ dados.duracao_anos_cp | int }} anos){% endif %}</span>
+        {% else %}
+          <span class="val pending">a preencher</span>
+        {% endif %}
+        <span class="badge ext">Base externa</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Revisão de Metas Contratuais — Última Data<span class="hint">base_dados_sisplan / historico_aditivos</span></span></div></div>
+      <div class="valwrap">{{ fmt(dados.revisao_metas_recente) }}<span class="badge ext">Base externa</span></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Relatório gerado pelo módulo Relatórios AGEMS do SISPLAN v2 · {{ municipio }}/{{ ano }}
+  </div>
+
+</div>
+</div>
+{% endif %}
+
+{% endblock %}

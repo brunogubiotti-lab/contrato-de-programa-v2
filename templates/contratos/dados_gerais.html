@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Dados Gerais — {{ municipio_selecionado }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 style="color:#12707a;"><i class="bi bi-file-earmark-text me-2"></i>Dados Gerais do Contrato de Programa</h4>
+
+  {# mesmo padrão de seletor de município da tela Por Município #}
+  <form method="get" class="d-flex align-items-center gap-2">
+    <label class="form-label mb-0 text-muted small">Município</label>
+    <select name="municipio" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+      {% for m in municipios %}
+        <option value="{{ m }}" {% if m == municipio_selecionado %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if not dados.tem_contrato %}
+<div class="alert alert-warning d-flex align-items-center" role="alert">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  <div>
+    <strong>{{ dados.municipio }}</strong> não possui Contrato de Programa vigente com a SANESUL no momento.
+    {% if dados.data_assinatura_convenio %}
+      Há registro apenas de um Convênio de Cooperação AGEMS, assinado em {{ dados.data_assinatura_convenio }}
+      {% if dados.data_expiracao_convenio %}e já expirado em {{ dados.data_expiracao_convenio }}{% endif %}.
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  {# ── Card: Contrato de Programa ── #}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h6 class="text-uppercase text-muted small mb-3"><i class="bi bi-file-earmark-ruled me-1"></i>Contrato de Programa</h6>
+        <dl class="row mb-0">
+          <dt class="col-6 text-muted">Número</dt>
+          <dd class="col-6">{{ dados.num_contrato_programa or "—" }}</dd>
+
+          <dt class="col-6 text-muted">Data de assinatura</dt>
+          <dd class="col-6">{{ dados.data_assinatura_cp or "—" }}</dd>
+
+          <dt class="col-6 text-muted">Duração</dt>
+          <dd class="col-6">{{ dados.duracao_anos_cp|int if dados.duracao_anos_cp else "—" }} anos</dd>
+
+          <dt class="col-6 text-muted">Data de expiração</dt>
+          <dd class="col-6">{{ dados.data_expiracao_cp or "—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  {# ── Card: Convênio de Cooperação AGEMS ── #}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h6 class="text-uppercase text-muted small mb-3"><i class="bi bi-shield-check me-1"></i>Convênio de Cooperação AGEMS</h6>
+        <dl class="row mb-0">
+          <dt class="col-6 text-muted">Número</dt>
+          <dd class="col-6">{{ dados.num_convenio_agems or "—" }}</dd>
+
+          <dt class="col-6 text-muted">Data de assinatura</dt>
+          <dd class="col-6">{{ dados.data_assinatura_convenio or "—" }}</dd>
+
+          <dt class="col-6 text-muted">Data de expiração</dt>
+          <dd class="col-6">{{ dados.data_expiracao_convenio or "—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  {# ── Histórico de Aditivos/Revisões ── #}
+  <div class="col-12">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-uppercase text-muted small mb-3"><i class="bi bi-clock-history me-1"></i>Histórico de Aditivos e Revisões</h6>
+
+        {% if aditivos %}
+        <table class="table table-sm table-hover mb-0" id="tabela-aditivos">
+          <thead>
+            <tr>
+              <th>Instrumento</th>
+              <th style="width: 140px;">Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in aditivos %}
+            <tr>
+              <td>{{ item.instrumento }}</td>
+              <td>{{ item.data }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Nenhum aditivo ou revisão registrado para este município.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+  // segue o mesmo padrão de DataTables já usado nas outras telas do
+  // módulo Contratos (biblioteca já carregada em base.html)
+  $(document).ready(function () {
+    if ($('#tabela-aditivos tbody tr').length > 1) {
+      $('#tabela-aditivos').DataTable({
+        paging: false,
+        searching: false,
+        info: false,
+        order: [], // mantém a ordem cronológica que o loader já devolve
+      });
+    }
+  });
+</script>
+{% endblock %}

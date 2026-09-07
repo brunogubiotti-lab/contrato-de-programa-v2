@@ -33,16 +33,6 @@
       padding: 20px; border-top: 1px solid #e3e8ec; margin-top: 40px;
     }
     .nav-dropdown-item.active { background: #e6f6f8; color: #12707a; font-weight: 600; }
-
-    /* ── Botão de aba ativa no menu ──
-       Antes usava .btn-info do Bootstrap (ciano/tiffany #0dcaf0).
-       Troca pelo azul escuro da paleta (mesmo tom usado nos cards de Água). */
-    .btn-nav-active {
-      background: #0c447c; border-color: #0c447c; color: #fff;
-    }
-    .btn-nav-active:hover, .btn-nav-active:focus {
-      background: #0a3a69; border-color: #0a3a69; color: #fff;
-    }
   </style>
 </head>
 <body>
@@ -56,13 +46,13 @@
     <span>SISPLAN</span>
   </a>
 
-  <a href="{{ url_for('home.home') }}" class="btn btn-sm {% if pagina_ativa == 'home' %}btn-nav-active{% else %}btn-light{% endif %}">
+  <a href="{{ url_for('home.home') }}" class="btn btn-sm {% if pagina_ativa == 'home' %}btn-info text-white{% else %}btn-light{% endif %}">
     <i class="bi bi-house-door me-1"></i>Início
   </a>
 
   {# ── Dropdown: Contratos de Programa (Por Município / Por Indicador / Análise Geral) ── #}
   <div class="dropdown">
-    <button class="btn btn-sm dropdown-toggle {% if pagina_ativa == 'contratos' %}btn-nav-active{% else %}btn-light{% endif %}"
+    <button class="btn btn-sm dropdown-toggle {% if pagina_ativa == 'contratos' %}btn-info text-white{% else %}btn-light{% endif %}"
             type="button" data-bs-toggle="dropdown">
       <i class="bi bi-file-earmark-ruled me-1"></i>Contratos de Programa
     </button>
@@ -96,7 +86,7 @@
 
   {# ── Dropdown: Relatórios AGEMS (RAD — primeiro item; espaço para futuros relatórios) ── #}
   <div class="dropdown">
-    <button class="btn btn-sm dropdown-toggle {% if pagina_ativa == 'relatorios_agems' %}btn-nav-active{% else %}btn-light{% endif %}"
+    <button class="btn btn-sm dropdown-toggle {% if pagina_ativa == 'relatorios_agems' %}btn-info text-white{% else %}btn-light{% endif %}"
             type="button" data-bs-toggle="dropdown">
       <i class="bi bi-file-earmark-bar-graph me-1"></i>Relatórios AGEMS
     </button>

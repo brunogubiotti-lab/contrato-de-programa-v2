@@ -11,11 +11,38 @@ from scripts.base_dados_loader import (
     carregar_comparacao,
     carregar_historico_municipio,
     carregar_evolucao_metas,
+    carregar_dados_gerais,
+    carregar_aditivos_municipio,
     INDICADORES,
 )
 
 
 contratos_bp = Blueprint("contratos", __name__, url_prefix="/contratos")
+
+
+@contratos_bp.route("/dados-gerais")
+def dados_gerais():
+    """
+    Ficha "cadastral" do Contrato de Programa: número, datas, duração,
+    convênio AGEMS e histórico de aditivos — um município por vez,
+    mesmo padrão de seleção da tela Por Município.
+    """
+    todos_dados = carregar_dados_gerais()
+    municipios_disponiveis = sorted(todos_dados.keys())
+
+    municipio_selecionado = request.args.get("municipio") or municipios_disponiveis[0]
+    dados_municipio = todos_dados.get(municipio_selecionado, {})
+    aditivos = carregar_aditivos_municipio(municipio_selecionado)
+
+    return render_template(
+        "contratos/dados_gerais.html",
+        municipios=municipios_disponiveis,
+        municipio_selecionado=municipio_selecionado,
+        dados=dados_municipio,
+        aditivos=aditivos,
+        pagina_ativa="contratos",
+        sub_ativa="dados_gerais",
+    )
 
 
 @contratos_bp.route("/por-municipio")
@@ -117,11 +144,27 @@ def analise_geral():
                 nao_atingiram.append(municipio)
         atingiram.sort()
         nao_atingiram.sort()
+        total = len(atingiram) + len(nao_atingiram)
+        # percentual de municípios que atingiram a meta (0 se não houver dados,
+        # para não quebrar a divisão quando total == 0)
+        pct = round((len(atingiram) / total) * 100) if total else 0
+
+        # nível de desempenho usado para colorir o card no template:
+        # >=90% = bom (verde) | 70-89% = atenção (âmbar) | <70% = crítico (vermelho)
+        if pct >= 90:
+            nivel = "bom"
+        elif pct >= 70:
+            nivel = "atencao"
+        else:
+            nivel = "critico"
+
         resumo[chave] = {
             "label": info["label"],
             "atingiram": atingiram,
             "nao_atingiram": nao_atingiram,
-            "total": len(atingiram) + len(nao_atingiram),
+            "total": total,
+            "pct": pct,
+            "nivel": nivel,
         }
 
     return render_template(

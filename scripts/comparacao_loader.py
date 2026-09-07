@@ -6,23 +6,22 @@ contratual (scripts/metas_loader.py) por município e por indicador,
 e calcula se o município está CUMPRINDO ou NÃO a meta.
 
 Como funciona a comparação:
-  Cada indicador tem um operador fixo (>=, >, <) que define o que
-  significa "cumprir a meta". Ex.: Cobertura de Água usa '>=', então
-  cumpre se REAL >= META. IPL usa '<', então cumpre se REAL < META
-  (quanto menor a perda, melhor).
+  O operador (>=, >, <) usado para decidir "cumpre" ou "não cumpre" vem
+  direto da meta carregada por metas_loader.carregar_metas() — não é
+  fixo neste arquivo. Ex.: Cobertura de Água normalmente usa '>=', então
+  cumpre se REAL >= META. IPL normalmente usa '<' (quanto menor a perda,
+  melhor). Mas o operador pode variar entre municípios ou entre o valor
+  "atual" e a meta final do mesmo indicador (já visto em Novo Horizonte
+  do Sul, por exemplo) — por isso não hardcodamos aqui.
 
-IMPORTANTE — DBO ainda não é comparável:
-  A meta de DBO na planilha do contrato é "% de remoção de carga
-  poluidora" (ex.: >= 60%), mas o valor REAL que carregamos hoje do
-  SINISA é a concentração bruta do afluente em mg/L — grandezas
-  diferentes. Por isso, para "dbo", NUNCA calculamos status de
-  cumprimento por enquanto: sempre volta "sem_dado". Isso já muda
-  sozinho quando a fórmula certa de DBO for implementada no
-  contratos_loader.py.
-
-IMPORTANTE — IPL ainda não tem dado real:
-  O Bruno vai mandar depois. Enquanto isso, "ipl" também sempre
-  volta "sem_dado" (mesmo já tendo a meta carregada).
+HISTÓRICO — DBO e IPL já têm dado real:
+  Até uma versão anterior deste arquivo, "dbo" e "ipl" sempre voltavam
+  "sem_dado" porque faltava a fórmula de remoção de DBO e o cálculo de
+  IPL (ver ipl_loader.py). Isso já foi implementado — INDICADORES_SEM_REAL_AINDA
+  está vazio hoje (linha abaixo) e ambos são comparados normalmente.
+  Se algum indicador precisar voltar a ficar de fora da comparação (por
+  falta de dado real), inclua sua chave nesse set — é o único lugar que
+  precisa mudar.
 """
 
 from scripts.contratos_loader import carregar_contratos
