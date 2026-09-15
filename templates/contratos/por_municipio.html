@@ -25,29 +25,13 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 1.25rem; color: #fff; flex-shrink: 0;
   }
-  .ind-barra { height: 8px; border-radius: 4px; background: #e3e1da; overflow: visible; position: relative; }
-  .ind-barra-preenchida { height: 100%; border-radius: 4px; transition: width .4s ease; position: relative; z-index: 1; }
-  .ind-barra-meta {
-    position: absolute; top: -3px; bottom: -3px; width: 3px;
-    background: #2d3436; border-radius: 2px;
-    box-shadow: 0 0 0 1.5px #fff;
-    z-index: 2;
-  }
-  /* Zona "dentro da meta" — do início da barra até a marca da meta,
-     em ardósia bem clara. Deixa explícito que preencher até ali é bom,
-     independente do indicador ser "maior é melhor" ou "menor é melhor". */
-  .ind-barra-zona-ok {
-    position: absolute; left: 0; top: 0; height: 100%;
-    background: rgba(74,102,112,0.12);
-    border-radius: 4px 0 0 4px;
-    z-index: 0;
-  }
-  /* Texto de apoio abaixo da barra, tipo "72.36 abaixo da meta" —
+  /* Texto de apoio logo abaixo do valor, tipo "72.36 abaixo da meta" —
      substitui a necessidade de repetir o valor da meta, que já
-     aparece no cabeçalho do card. */
+     aparece no cabeçalho do card. Antes ficava colado à barra de
+     progresso; sem a barra, ganha um pouco mais de respiro (margin-top). */
   .ind-delta-meta {
     font-size: 0.78rem; font-weight: 600; color: #4a6670;
-    margin: -6px 0 10px;
+    margin: 2px 0 12px;
   }
 
   /* ── Cores de status (paleta sóbria — mesma da Análise Geral) ──
@@ -135,21 +119,21 @@
   </div>
 </div>
 
-{# ── Ícone, cor e "teto" de barra por indicador — agora agrupados por família
-     de cor (Água = tons de azul, Esgoto = tons de verde), pra ficar óbvio
+{# ── Ícone e cor por indicador — agrupados por família de cor
+     (Água = tons de azul, Esgoto = tons de verde), pra ficar óbvio
      visualmente qual card pertence a qual grupo mesmo sem ler o rótulo ── #}
 {% set icones = {
-  'agua': ('bi-droplet-fill', '#146b9c', 100),
-  'ipl': ('bi-graph-down-arrow', '#2e86ab', 400),
-  'iqa': ('bi-shield-check', '#5aa9d6', 100),
-  'esgoto': ('bi-water', '#2f7d4f', 100),
-  'tratamento': ('bi-recycle', '#4caf7d', 100),
-  'dbo': ('bi-droplet-half', '#7fb894', 100),
+  'agua': ('bi-droplet-fill', '#146b9c'),
+  'ipl': ('bi-graph-down-arrow', '#2e86ab'),
+  'iqa': ('bi-shield-check', '#5aa9d6'),
+  'esgoto': ('bi-water', '#2f7d4f'),
+  'tratamento': ('bi-recycle', '#4caf7d'),
+  'dbo': ('bi-droplet-half', '#7fb894'),
 } %}
 
 {# ── Macro reaproveitada pros dois grupos de card (evita duplicar HTML) ── #}
 {% macro card_indicador(chave, item, grupo) %}
-  {% set icone, cor, teto = icones.get(chave, ('bi-bar-chart', '#1a9baa', 100)) %}
+  {% set icone, cor = icones.get(chave, ('bi-bar-chart', '#1a9baa')) %}
   <div class="col-md-4">
     <div class="card ind-card grupo-{{ grupo }} shadow-sm h-100">
       <div class="card-body">
@@ -165,17 +149,6 @@
 
         <div class="d-flex align-items-baseline gap-2 mb-2">
           <span class="fs-3 fw-bold">{{ "%.2f"|format(item.real) if item.real is not none else "—" }}</span>
-        </div>
-
-        <div class="ind-barra mb-1">
-          {% set pct = ((item.real / teto) * 100) if item.real is not none else 0 %}
-          {% set cor_status = {'cumpre': '#4a6670', 'nao_cumpre': '#8a4a4a', 'sem_dado': '#c1c7cd'}[item.status] %}
-          {% if item.meta is not none %}
-            {% set meta_pct = [(item.meta / teto) * 100, 100] | min %}
-            <div class="ind-barra-zona-ok" style="width: {{ meta_pct }}%;"></div>
-            <div class="ind-barra-meta" style="left: {{ meta_pct }}%;" title="Meta: {{ item.operador }} {{ '%.2f'|format(item.meta) }}"></div>
-          {% endif %}
-          <div class="ind-barra-preenchida" style="width: {{ [pct, 100] | min }}%; background: {{ cor_status }};"></div>
         </div>
 
         {% if item.status in ('cumpre', 'nao_cumpre') and item.meta is not none and item.real is not none %}
