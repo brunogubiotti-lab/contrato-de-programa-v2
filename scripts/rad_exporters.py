@@ -30,6 +30,7 @@ import zipfile
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from flask import render_template
 
@@ -69,7 +70,7 @@ _TAG_STYLE = {
 
 _THIN = Side(style="thin", color=LINE)
 _BORDER_ALL = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
-_ROW_HEIGHT = 20  # altura fixa (sem wrap) — todas as linhas de campo iguais
+_ROW_HEIGHT = 15  # 15pt = altura padrão do Excel p/ Calibri 10-11 (equivalente ao autoajuste de 1 linha)
 
 
 def _altura_com_quebra(texto: str, largura_coluna: float, altura_minima: int = _ROW_HEIGHT) -> int:
@@ -90,9 +91,83 @@ def _altura_com_quebra(texto: str, largura_coluna: float, altura_minima: int = _
     n_linhas = -(-len(str(texto)) // caracteres_por_linha)  # ceil sem importar math
     return max(altura_minima, n_linhas * 15)
 
+# Quantas colunas extras (D, E, F...) uma linha pode "tomar emprestado"
+# da coluna C quando 1 obra isolada (já sem \n pra separar) ainda é um
+# parágrafo grande demais para a largura padrão. 6 colunas extras (até
+# a I) leva a largura de 36 para ~87 unidades — o suficiente pra cortar
+# a altura por ~2-3x nos casos reais (mediana 148 e p90 355 caracteres
+# dos 68 municípios) sem deixar a planilha visualmente torta nas outras
+# linhas, que continuam A:C.
+_COLUNAS_EXTRA_TEXTO_LONGO = 6
+_LIMIAR_OBRA_ISOLADA_LONGA = 120  # obra sem \n com mais que isso já pede a coluna extra
+
+
+def _field_row_obra(ws, row: int, campo_meta: dict, valor) -> int:
+    """Como field_row (ver mais abaixo), mas para os 6 campos de texto
+    livre da Laudenise (Obras/Melhorias) — que podem trazer VÁRIAS obras
+    juntas no mesmo campo, separadas por \\n. Em vez de 1 célula gigante
+    (o que gerava linhas de 20+ de altura — ver Alterações no RAD 2025,
+    análise dos 68 municípios: mediana 148 caracteres, mas o pior caso —
+    Dourados — passa de 1.200), quebra em 1 linha Excel por obra, com o
+    rótulo repetido em cada uma — mesmo padrão já aprovado em
+    _linhas_obra_validacao (Relatório de Validação de Investimentos).
+    Quando uma obra isolada (já sem \\n) ainda é grande, a linha mescla
+    C com mais _COLUNAS_EXTRA_TEXTO_LONGO colunas só ali, alargando a
+    célula em vez de deixá-la só mais alta. Retorna quantas linhas do
+    Excel foram usadas, para o chamador avançar `r` de acordo (nem toda
+    chamada consome só 1 linha, diferente de field_row)."""
+    from scripts.rad_loader import eh_explicacao, texto_explicacao
+
+    label = campo_meta["label"]
+    if eh_explicacao(valor):
+        obras = [texto_explicacao(valor)]
+    elif valor:
+        obras = [linha.strip() for linha in str(valor).split("\n") if linha.strip()]
+        if not obras:
+            obras = ["a preencher"]
+    else:
+        obras = ["a preencher"]
+
+    linha = row
+    for obra in obras:
+        lc = ws.cell(row=linha, column=2, value=label)
+        lc.font = _LABEL_FONT
+        lc.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+        eh_pendencia = obra in ("a preencher", "Não aplicável")
+        vc = ws.cell(row=linha, column=3, value=obra)
+        vc.font = _VALUE_PENDING_FONT if eh_pendencia else _VALUE_FONT
+
+        col_final = 3  # só C, como field_row normal
+        largura_disponivel = ws.column_dimensions["C"].width
+        if len(obra) > _LIMIAR_OBRA_ISOLADA_LONGA:
+            col_final = 3 + _COLUNAS_EXTRA_TEXTO_LONGO  # C:I
+            ws.merge_cells(start_row=linha, start_column=3, end_row=linha, end_column=col_final)
+            largura_disponivel = sum(
+                ws.column_dimensions[get_column_letter(c)].width or 8.43
+                for c in range(3, col_final + 1)
+            )
+        vc.alignment = Alignment(
+            horizontal="left",
+            vertical="top" if col_final > 3 else "center",
+            wrap_text=True,
+        )
+
+        for col_idx in range(1, col_final + 1):
+            cell = ws.cell(row=linha, column=col_idx)
+            cell.border = _BORDER_ALL
+            if col_idx in (1, 2):
+                cell.fill = _fill(LIGHT_BG)
+
+        ws.row_dimensions[linha].height = _altura_com_quebra(obra, largura_disponivel)
+        linha += 1
+
+    return linha - row
+
+
 _CORES_AREA = {
     "agua": "2F6FB0",
-    "esgoto": "16305C",
+    "esgoto": ORANGE,
     "contabil": "5B6472",
     "investimento": "3F6B47",
 }
@@ -117,6 +192,18 @@ def _fmt_valor_excel(valor):
         return f"{int(numero):,}".replace(",", ".")
     texto = f"{numero:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     return texto
+
+
+def _texto_ete(nome: str, tratamento_pct, eficiencia_pct) -> str:
+    """Nome da ETE + Eficiência de tratamento (DBO), quando disponível
+    (aba etes_municipio, planilha de eficiência 2025 — Bruno reverteu
+    em 18/09/2026 a decisão de 17/09 de omitir isso, agora que a
+    maioria das ETEs tem o valor real, não mais "a preencher").
+    tratamento_pct continua sem aparecer aqui: é sempre 100% pela
+    regra de negócio da SANESUL, não agrega informação."""
+    if eficiencia_pct is None:
+        return nome
+    return f"{nome} — Eficiência: {_fmt_valor_excel(eficiencia_pct)}%"
 
 
 def _nome_aba_unico(nomes_usados: set, base: str) -> str:
@@ -152,19 +239,26 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
     """Escreve a ficha completa de 1 município na worksheet `ws`, a
     partir de `linha_inicial`. Retorna a próxima linha livre (para
     permitir múltiplas fichas na mesma aba, se algum dia precisar)."""
-    from scripts.rad_loader import CAMPOS_RAD, SECOES
+    from scripts.rad_loader import CAMPOS_RAD, SECOES, eh_explicacao, texto_explicacao
 
-    # 4 colunas de verdade agora (A-D): a antiga coluna D era um
-    # espaçador decorativo que nunca recebia conteúdo — removida. Tag
-    # (Automático/Manual/...) passa a ser a coluna D.
-    widths = {"A": 3, "B": 40, "C": 22, "D": 16}
+    # 3 colunas de verdade (A-C): A é decorativa, B é o rótulo, C é o
+    # valor. As colunas D (respiro) e E ("Origem": Automático/Manual/...)
+    # existiram entre 17/09 e hoje e foram removidas a pedido do Bruno —
+    # ele não precisa mais dessa informação na ficha (o Glossário, se um
+    # dia precisar, continua guardando classificacao/código de cada
+    # campo em CAMPOS_RAD).
+    widths = {"A": 3, "B": 58, "C": 36}  # calibrado p/ 0 labels e 0 valores
+    # quebrarem linha à toa (17/09: análise dos 62 campos de CAMPOS_RAD
+    # + os 68 municípios reais — maior label tem 53 chars, maior valor
+    # "Não aplicável (sistema por poços)" tem 33 chars; B=58/C=36 cobre
+    # os dois com folga, deixando quase toda linha numa altura só)
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
     r = linha_inicial
 
     def merge_band(row, texto, cor, fonte, altura=22):
-        ws.merge_cells(f"A{row}:D{row}")
+        ws.merge_cells(f"A{row}:C{row}")
         c = ws.cell(row=row, column=1, value=texto)
         c.font = fonte
         c.fill = _fill(cor)
@@ -176,22 +270,16 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
         linha (mesma aparência de um field_row comum). Quebra o texto
         (wrap_text) e ajusta a altura da linha dinamicamente — nome de
         ETE + tratamento + eficiência pode passar da largura da coluna C."""
-        lc = ws.cell(row=row, column=2, value="ETE — nome / tratamento / eficiência")
+        lc = ws.cell(row=row, column=2, value="ETE")
         lc.font = _LABEL_FONT
         if ete:
-            trat = f"{_fmt_valor_excel(ete['tratamento_pct'])}%" if ete["tratamento_pct"] is not None else "trat. a preencher"
-            efic = f"{_fmt_valor_excel(ete['eficiencia_pct'])}%" if ete["eficiencia_pct"] is not None else "efic. a preencher"
-            texto_valor = f"{ete['nome']} — {trat} — {efic}"
+            texto_valor = _texto_ete(ete["nome"], ete["tratamento_pct"], ete["eficiencia_pct"])
         else:
-            texto_valor = "a preencher"
+            texto_valor = "Não aplicável" if dados.get("_sem_esgoto") else "a preencher"
         vc = ws.cell(row=row, column=3, value=texto_valor)
         vc.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         vc.font = _VALUE_FONT if ete else _VALUE_PENDING_FONT
-        _, tag_font, tag_label = _TAG_STYLE["manual"]
-        tc = ws.cell(row=row, column=4, value=tag_label)
-        tc.font = tag_font
-        tc.alignment = Alignment(horizontal="center", vertical="center")
-        for col in "ABCD":
+        for col in "ABC":
             cell = ws[f"{col}{row}"]
             cell.border = _BORDER_ALL
             if col != "C":
@@ -203,7 +291,7 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
         se houver 2+, um cabeçalho identificador seguido de 1 linha por
         ETE (numerada), cada uma com seu próprio tratamento% e
         eficiência% (tratamento é sempre 100% pela regra de negócio da
-        SANESUL; eficiência ainda é 'a preencher' até termos o dado por
+        SANESUL; eficiência ainda é '' até termos o dado por
         ETE). Cada linha quebra o texto e tem altura ajustada ao tamanho
         do nome da ETE (evita texto cortado, ver print de Dourados com
         5 ETEs). Retorna a próxima linha livre."""
@@ -211,8 +299,8 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
             linha_ete_simples(row, etes[0] if etes else None)
             return row + 1
 
-        ws.merge_cells(f"A{row}:D{row}")
-        titulo = ws.cell(row=row, column=1, value=f"ETEs DO MUNICÍPIO ({len(etes)}) — tratamento e eficiência individuais")
+        ws.merge_cells(f"A{row}:C{row}")
+        titulo = ws.cell(row=row, column=1, value=f"ETEs DO MUNICÍPIO ({len(etes)})")
         titulo.font = _SUBSECTION_FONT
         titulo.fill = _fill(GRAY)
         titulo.alignment = Alignment(horizontal="center", vertical="center")
@@ -222,17 +310,11 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
         for i, ete in enumerate(etes, start=1):
             lc = ws.cell(row=row, column=2, value=f"ETE {i} de {len(etes)}")
             lc.font = _LABEL_FONT
-            trat = f"{_fmt_valor_excel(ete['tratamento_pct'])}%" if ete["tratamento_pct"] is not None else "trat. a preencher"
-            efic = f"{_fmt_valor_excel(ete['eficiencia_pct'])}%" if ete["eficiencia_pct"] is not None else "efic. a preencher"
-            texto_valor = f"{ete['nome']} — {trat} — {efic}"
+            texto_valor = _texto_ete(ete["nome"], ete["tratamento_pct"], ete["eficiencia_pct"])
             vc = ws.cell(row=row, column=3, value=texto_valor)
             vc.font = _VALUE_FONT
             vc.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            _, tag_font, tag_label = _TAG_STYLE["manual"]
-            tc = ws.cell(row=row, column=4, value=tag_label)
-            tc.font = tag_font
-            tc.alignment = Alignment(horizontal="center", vertical="center")
-            for col in "ABCD":
+            for col in "ABC":
                 cell = ws[f"{col}{row}"]
                 cell.border = _BORDER_ALL
                 if col != "C":
@@ -242,12 +324,10 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
         return row
 
     def field_row(row, campo_meta, valor):
-        """Rótulo E valor sempre quebram linha (wrap_text) e a altura da
-        linha é calculada a partir do maior dos dois textos — antes só
-        o valor podia quebrar, e olhe lá; rótulo longo (ex.: "Índice de
-        Perdas na Distribuição (%) — fórmula INF1/67/9642/71/78", 65
-        caracteres) simplesmente cortava visualmente contra a borda da
-        coluna de valor ao lado, porque o rótulo nunca quebrava."""
+        """Rótulo e valor quebram linha (wrap_text) e a altura da linha
+        é calculada a partir do maior dos dois textos — EXCETO
+        Localidades Atendidas, que fica numa linha só sem quebra (ver
+        nota abaixo): célula grande demais incomodava o Bruno."""
         label = campo_meta["label"]
         if campo_meta.get("unidade") and "(" not in label:
             label += f" ({campo_meta['unidade']})"
@@ -257,118 +337,131 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
         lc.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
         valor_fmt = _fmt_valor_excel(valor)
-        texto_valor = valor_fmt if valor_fmt is not None else "a preencher"
+        eh_expl = eh_explicacao(valor)
+        texto_valor = texto_explicacao(valor) if eh_expl else (valor_fmt if valor_fmt is not None else "")
 
         # Localidades Atendidas pode listar 5+ nomes de cidade/distrito
-        # (ex.: Dourados) — quebrando só na coluna C (22 de largura) a
-        # linha ficava alta demais (Alterações no RAD 2025, item 5 do
-        # Excel completo / item 2 do relatório de validação). Mescla
-        # C:D só para esse campo (usa a largura de C+D juntas) — texto
-        # cabe em bem menos linhas, ficando bem mais baixo.
+        # (ex.: Dourados) — em vez de quebrar linha (o que deixava a
+        # célula alta e incomodava, Alterações no RAD 2025 item 2 de
+        # 17/09), fica numa única linha sem wrap: o texto "vazia"
+        # visualmente por cima da célula vazia à direita, sem forçar a
+        # linha a crescer em altura (mesmo padrão adotado no Relatório
+        # de Validação).
         eh_localidades = label.startswith("Localidades Atendidas")
-        if eh_localidades:
-            ws.merge_cells(f"C{row}:D{row}")
-            largura_valor = ws.column_dimensions["C"].width + ws.column_dimensions["D"].width
-        else:
-            largura_valor = ws.column_dimensions["C"].width
 
         vc = ws.cell(row=row, column=3, value=texto_valor)
-        vc.alignment = Alignment(horizontal="left" if eh_localidades else "center", vertical="center", wrap_text=True)
-        vc.font = _VALUE_FONT if valor_fmt is not None else _VALUE_PENDING_FONT
-
         if eh_localidades:
-            # Sem coluna D disponível para a tag (mesclada com C) —
-            # a tag "Manual" já está implícita: única linha do RAD que
-            # não tem código INF/IND, fica óbvio ao olhar as vizinhas.
-            ws.cell(row=row, column=4).fill = _fill(LIGHT_BG)
+            vc.alignment = Alignment(horizontal="left", vertical="center", wrap_text=False)
         else:
-            _, tag_font, tag_label = _TAG_STYLE[campo_meta["classificacao"]]
-            tc = ws.cell(row=row, column=4, value=tag_label)
-            tc.font = tag_font
-            tc.alignment = Alignment(horizontal="center", vertical="center")
+            vc.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        vc.font = _VALUE_PENDING_FONT if (eh_expl or valor_fmt is None) else _VALUE_FONT
 
-        for col in "ABCD":
+        for col in "ABC":
             cell = ws[f"{col}{row}"]
             cell.border = _BORDER_ALL
             if col != "C":
                 cell.fill = _fill(LIGHT_BG)
 
-        altura = max(
-            _altura_com_quebra(texto_label, ws.column_dimensions["B"].width),
-            _altura_com_quebra(texto_valor, largura_valor),
-        )
-        ws.row_dimensions[row].height = altura
+        if eh_localidades:
+            ws.row_dimensions[row].height = _ROW_HEIGHT
+        else:
+            altura = max(
+                _altura_com_quebra(texto_label, ws.column_dimensions["B"].width),
+                _altura_com_quebra(texto_valor, ws.column_dimensions["C"].width),
+            )
+            ws.row_dimensions[row].height = altura
 
     # ---- Cabeçalho ----
     merge_band(r, "RAD - RELATÓRIO ANUAL DE DESEMPENHO", NAVY, _HEADER_FONT, altura=30); r += 1
     merge_band(r, f"MUNICÍPIO: {municipio.upper()} — {ano}", NAVY2, _SUBHEADER_FONT, altura=22); r += 1
     r += 1
 
-    ws.cell(row=r, column=2, value="Município").font = _LABEL_FONT
-    ws.cell(row=r, column=2).fill = _fill(LIGHT_BG)
-    ws.merge_cells(f"C{r}:D{r}")
-    mc = ws.cell(row=r, column=3, value=municipio)
-    mc.font = _VALUE_FONT
-    mc.alignment = Alignment(horizontal="center")
-    for col in "ABCD":
-        ws[f"{col}{r}"].border = _BORDER_ALL
-    ws.row_dimensions[r].height = 20
-    r += 2
-
     campos_por_secao = {}
     for campo, meta in CAMPOS_RAD.items():
         campos_por_secao.setdefault(meta["secao"], []).append((campo, meta))
 
+    # Numeração romana I-V — igual à tela/HTML do sistema (Alterações no
+    # RAD 2025, 17/09): Sistemas de Água/Esgoto ficam lado a lado
+    # conceitualmente e NÃO recebem número próprio (antes eram II e III
+    # aqui no Excel, separados — o Bruno achou estranho ter números
+    # diferentes entre o Excel e o sistema e pediu pra igualar).
     merge_band(r, "I — " + SECOES["municipio"].upper(), NAVY2, _SECTION_FONT); r += 1
     for campo, meta in campos_por_secao.get("municipio", []):
-        # field_row já calcula a altura certa sozinho (rótulo E valor
-        # quebram e a linha usa o maior dos dois) — Localidades Atendidas
-        # (que pode listar 5+ localidades, ex. Dourados) não precisa mais
-        # de tratamento especial aqui.
         field_row(r, meta, dados.get(campo))
         r += 1
     r += 1
 
-    merge_band(r, "II — " + SECOES["agua"].upper(), NAVY2, _SECTION_FONT); r += 1
+    merge_band(r, SECOES["agua"].upper(), NAVY2, _SECTION_FONT); r += 1
     for campo, meta in campos_por_secao.get("agua", []):
         field_row(r, meta, dados.get(campo)); r += 1
     r += 1
 
-    merge_band(r, "III — " + SECOES["esgoto"].upper(), ORANGE, _SECTION_FONT); r += 1
+    merge_band(r, SECOES["esgoto"].upper(), ORANGE, _SECTION_FONT); r += 1
     for campo, meta in campos_por_secao.get("esgoto", []):
         field_row(r, meta, dados.get(campo)); r += 1
-    r += 1  # respiro entre "III — Sistemas de Esgoto" e o bloco de ETEs (Alterações no RAD 2025, item 2)
+    r += 1  # respiro entre "Sistemas de Esgoto" e o bloco de ETEs
     r = bloco_etes(r, dados.get("etes", []))
     r += 1
 
-    merge_band(r, "IV — " + SECOES["operacional"].upper(), NAVY2, _SECTION_FONT); r += 1
-    for campo, meta in campos_por_secao.get("operacional", []):
-        field_row(r, meta, dados.get(campo)); r += 1
+    # II — Indicadores Operacionais: dividido em Água / Esgoto / Geral
+    # (Alterações no RAD 2025, item 8) — mesmo padrão de sub-bandas já
+    # usado em Investimentos Realizados. Grupos fixos em
+    # rad_loader.GRUPOS_OPERACIONAL (não dá pra usar area_validacao
+    # aqui: tarifas/ticket são area_validacao=None e ligações são
+    # area_validacao="investimento", mesmo sendo indicador operacional).
+    from scripts.rad_loader import GRUPOS_OPERACIONAL
+    campos_operacional = {c: m for c, m in campos_por_secao.get("operacional", [])}
+
+    merge_band(r, "II — " + SECOES["operacional"].upper(), NAVY2, _SECTION_FONT); r += 1
+
+    merge_band(r, "ÁGUA", "2F6FB0", _SUBSECTION_FONT, altura=20); r += 1
+    for campo in GRUPOS_OPERACIONAL["agua"]:
+        field_row(r, campos_operacional[campo], dados.get(campo)); r += 1
     r += 1
 
-    merge_band(r, "V — " + SECOES["metas"].upper(), GRAY, _SECTION_FONT); r += 1
+    merge_band(r, "ESGOTO", ORANGE, _SUBSECTION_FONT, altura=20); r += 1
+    if GRUPOS_OPERACIONAL["esgoto"]:
+        for campo in GRUPOS_OPERACIONAL["esgoto"]:
+            field_row(r, campos_operacional[campo], dados.get(campo)); r += 1
+    else:
+        ws.cell(row=r, column=2, value="Sem indicador operacional específico cadastrado").font = _VALUE_PENDING_FONT
+        for col in "ABC":
+            cell = ws[f"{col}{r}"]
+            cell.border = _BORDER_ALL
+            if col != "C":
+                cell.fill = _fill(LIGHT_BG)
+        ws.row_dimensions[r].height = _ROW_HEIGHT
+        r += 1
+    r += 1
+
+    merge_band(r, "GERAL (ÁGUA + ESGOTO)", GRAY, _SUBSECTION_FONT, altura=20); r += 1
+    for campo in GRUPOS_OPERACIONAL["geral"]:
+        field_row(r, campos_operacional[campo], dados.get(campo)); r += 1
+    r += 1
+
+    merge_band(r, "III — " + SECOES["metas"].upper(), GRAY, _SECTION_FONT); r += 1
     for campo, meta in campos_por_secao.get("metas", []):
         field_row(r, meta, dados.get(campo)); r += 1
     r += 1
 
-    # VI — Investimentos Realizados: dividido em 3 sub-bandas (Água /
+    # IV — Investimentos Realizados: dividido em 3 sub-bandas (Água /
     # Esgoto / Compartilhado), cada campo já como seu próprio field_row
-    # (label + valor + tag) — em vez da lista única e sem classificação
-    # de antes (Alterações no RAD 2025, item 1 do Excel completo).
+    # (label + valor) — em vez da lista única e sem classificação de
+    # antes (Alterações no RAD 2025, item 1 do Excel completo).
     # Ligações reais faturadas/não faturadas NÃO aparecem mais aqui —
     # mudaram de seção para "operacional" (ver rad_loader.py), saem
-    # junto com IV — Indicadores Operacionais, ao lado das tarifas.
-    merge_band(r, "VI — " + SECOES["investimentos"].upper(), NAVY2, _SECTION_FONT); r += 1
+    # junto com II — Indicadores Operacionais, ao lado das tarifas.
+    merge_band(r, "IV — " + SECOES["investimentos"].upper(), NAVY2, _SECTION_FONT); r += 1
 
     campos_investimentos = {c: m for c, m in campos_por_secao.get("investimentos", [])}
     _GRUPOS_INVESTIMENTOS_FICHA = [
         ("ÁGUA", "2F6FB0", [
-            "obras_agua", "melhorias_agua",
+            "obras_cobertura_agua", "obras_producao_agua", "melhorias_agua",
             "invest_fonte_propria_agua", "invest_fonte_onerosa_agua",
             "invest_fonte_nao_onerosa_agua", "investimento_total_agua",
         ]),
         ("ESGOTO", ORANGE, [
-            "obras_esgoto", "melhorias_esgoto",
+            "obras_cobertura_esgoto", "obras_tratamento_esgoto", "melhorias_esgoto",
             "invest_fonte_propria_esgoto", "invest_fonte_onerosa_esgoto",
             "invest_fonte_nao_onerosa_esgoto", "investimento_total_esgoto",
         ]),
@@ -378,18 +471,27 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
             "obras_andamento_compartilhado", "outros_investimentos",
         ]),
     ]
+    # Campos de texto livre da Laudenise (Obras/Melhorias) — únicos com
+    # classificacao "laud" — passam por _field_row_obra em vez do
+    # field_row genérico (ver nota na função: evita a célula gigante de
+    # 1 linha só quando o texto é longo).
+    _campos_texto_longo = {c for c, m in CAMPOS_RAD.items() if m["classificacao"] == "laud"}
+
     for titulo_grupo, cor_grupo, campos_grupo in _GRUPOS_INVESTIMENTOS_FICHA:
         merge_band(r, titulo_grupo, cor_grupo, _SUBSECTION_FONT, altura=20); r += 1
         for campo in campos_grupo:
-            field_row(r, campos_investimentos[campo], dados.get(campo)); r += 1
+            if campo in _campos_texto_longo:
+                r += _field_row_obra(ws, r, campos_investimentos[campo], dados.get(campo))
+            else:
+                field_row(r, campos_investimentos[campo], dados.get(campo)); r += 1
         r += 1  # respiro entre sub-bandas
 
-    merge_band(r, "VII — " + SECOES["contratual"].upper(), GRAY, _SECTION_FONT); r += 1
+    merge_band(r, "V — " + SECOES["contratual"].upper(), GRAY, _SECTION_FONT); r += 1
     for campo, meta in campos_por_secao.get("contratual", []):
         field_row(r, meta, dados.get(campo)); r += 1
     r += 1
 
-    ws.merge_cells(f"A{r}:D{r}")
+    ws.merge_cells(f"A{r}:C{r}")
     rodape = ws.cell(row=r, column=1, value=f"Relatório gerado pelo módulo Relatórios AGEMS do SISPLAN v2 · {municipio}/{ano}")
     rodape.font = _FOOTER_FONT
     rodape.alignment = Alignment(horizontal="center", wrap_text=False)
@@ -399,7 +501,6 @@ def _escrever_ficha_municipio(ws, municipio: str, ano: int, dados: dict, linha_i
     ws.sheet_view.showGridLines = False
     return r
 
-
 def gerar_excel_rad(municipio: str, ano: int, regional: str, dados: dict) -> BytesIO:
     """Ficha de 1 município, layout do mockup aprovado. Retorna BytesIO
     pronto para `send_file`."""
@@ -407,7 +508,7 @@ def gerar_excel_rad(municipio: str, ano: int, regional: str, dados: dict) -> Byt
     ws = wb.active
     ws.title = f"RAD_{municipio}"[:31]
     _escrever_ficha_municipio(ws, municipio, ano, dados)
-    ws.freeze_panes = "A6"
+    ws.freeze_panes = "A3"  # só as 2 primeiras linhas (título + município) ficam fixas
 
     buffer = BytesIO()
     wb.save(buffer)
@@ -426,7 +527,7 @@ def gerar_zip_excel_rad_todos(ano: int, lista_municipios_dados: list[tuple[str, 
             ws = wb.active
             ws.title = f"RAD_{municipio}"[:31]
             _escrever_ficha_municipio(ws, municipio, ano, dados)
-            ws.freeze_panes = "A6"
+            ws.freeze_panes = "A3"  # só as 2 primeiras linhas (título + município) ficam fixas
 
             arquivo_buffer = BytesIO()
             wb.save(arquivo_buffer)
@@ -474,12 +575,14 @@ def gerar_zip_html_rad_todos(ano: int, lista_municipios_dados: list[tuple[str, d
 # o valor atual de cada campo — sem colunas de confirmação/observação.
 
 def _banda_validacao(ws, row: int, texto: str, cor: str, altura: int = 22) -> None:
-    """Faixa colorida (B:D) usada para segregar sub-blocos dentro do
+    """Faixa colorida (B:C) usada para segregar sub-blocos dentro do
     Relatório de Validação de Investimentos (Água / Esgoto / Ativos
     Compartilhados) — mesmo estilo visual das bandas da ficha completa
-    (merge_band em _escrever_ficha_municipio), só que restrita a B:D
-    porque a coluna A do relatório de validação é decorativa."""
-    ws.merge_cells(f"B{row}:D{row}")
+    (merge_band em _escrever_ficha_municipio), só que restrita a B:C
+    porque a coluna A do relatório de validação é decorativa e, desde
+    17/09, a coluna Código/Fonte foi retirada (layout ficou com só
+    Campo | Valor Atual)."""
+    ws.merge_cells(f"B{row}:C{row}")
     c = ws.cell(row=row, column=2, value=texto)
     c.font = _HEADER_TABLE_FONT
     c.fill = _fill(cor)
@@ -488,24 +591,85 @@ def _banda_validacao(ws, row: int, texto: str, cor: str, altura: int = 22) -> No
     ws.cell(row=row, column=1).fill = _fill(cor)
 
 
+def _linhas_obra_validacao(ws, row: int, label_categoria: str, valor) -> int:
+    """Uma ou mais linhas de "Categoria | Descrição da Obra" — uma linha
+    por obra descrita, separadas por quebra de linha (Alt+Enter) dentro
+    do mesmo campo da base (ex.: obras_cobertura_agua). Usado só no
+    Relatório de Validação de Investimentos (Alterações no RAD 2025,
+    17/09 — pedido do Bruno: coluna "Descrição da Obra" separada da
+    coluna de valores financeiros, e cada obra na sua própria linha,
+    igual ao RAD antigo — em vez de 1 célula só com texto livre).
+    Retorna a próxima linha livre."""
+    from scripts.rad_loader import eh_explicacao, texto_explicacao
+    if eh_explicacao(valor):
+        obras = [texto_explicacao(valor)]
+    elif valor:
+        obras = [linha.strip() for linha in str(valor).split("\n") if linha.strip()]
+        if not obras:
+            obras = ["a preencher"]
+    else:
+        obras = ["a preencher"]
+
+    for obra in obras:
+        lc = ws.cell(row=row, column=2, value=label_categoria)
+        lc.font = _LABEL_FONT
+        lc.alignment = Alignment(horizontal="left", vertical="center")
+        eh_pendencia = obra in ("a preencher", "Não aplicável")
+        vc = ws.cell(row=row, column=3, value=obra)
+        vc.font = _VALUE_PENDING_FONT if eh_pendencia else _VALUE_FONT
+
+        # Mesma lógica de _field_row_obra (ficha completa): quando a
+        # obra já separada por \n ainda é um parágrafo longo (calibrado
+        # com os 68 municípios reais: até 433 caracteres numa obra só),
+        # mescla C com mais colunas extra só nessa linha, alargando a
+        # célula em vez de deixá-la só mais alta.
+        col_final = 3
+        largura_disponivel = ws.column_dimensions["C"].width
+        if len(obra) > _LIMIAR_OBRA_ISOLADA_LONGA:
+            col_final = 3 + _COLUNAS_EXTRA_TEXTO_LONGO
+            ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=col_final)
+            largura_disponivel = sum(
+                ws.column_dimensions[get_column_letter(c)].width or 8.43
+                for c in range(3, col_final + 1)
+            )
+        vc.alignment = Alignment(
+            horizontal="left",
+            vertical="top" if col_final > 3 else "center",
+            wrap_text=True,
+        )
+        for col_idx in range(1, col_final + 1):
+            cell = ws.cell(row=row, column=col_idx)
+            cell.border = _BORDER_ALL
+            if col_idx in (1, 2):
+                cell.fill = _fill(LIGHT_BG)
+        ws.row_dimensions[row].height = _altura_com_quebra(obra, largura_disponivel)
+        row += 1
+    return row
+
+
 def _linha_campo_validacao(ws, row: int, meta: dict, valor) -> None:
-    """1 linha (Campo | Código/Fonte | Valor Atual) do relatório de
-    validação — mesmo estilo da linha genérica usada dentro do loop
-    padrão de gerar_excel_validacao_area, só extraída para função para
-    poder ser reaproveitada pelo layout segregado de Investimentos."""
+    """1 linha (Campo | Valor Atual) do relatório de validação — mesmo
+    estilo da linha genérica usada dentro do loop padrão de
+    gerar_excel_validacao_area, só extraída para função para poder ser
+    reaproveitada pelo layout segregado de Investimentos. A coluna
+    Código/Fonte foi retirada em 17/09 (pedido do Bruno: informação
+    técnica que não ajudava quem valida os números por e-mail — o
+    Glossário já cobre isso para quem precisar)."""
     valor_fmt = _fmt_valor_excel(valor)
+    from scripts.rad_loader import eh_explicacao, texto_explicacao
+    eh_expl = eh_explicacao(valor)
+    texto_valor = texto_explicacao(valor) if eh_expl else (valor_fmt if valor_fmt is not None else "")
     label = meta["label"]
     if meta.get("unidade") and "(" not in label:
         label += f" ({meta['unidade']})"
     ws.cell(row=row, column=2, value=label).font = _LABEL_FONT
-    ws.cell(row=row, column=3, value=meta.get("codigo", "")).font = _LABEL_FONT
-    vc = ws.cell(row=row, column=4, value=valor_fmt if valor_fmt is not None else "a preencher")
-    vc.font = _VALUE_FONT if valor_fmt is not None else _VALUE_PENDING_FONT
+    vc = ws.cell(row=row, column=3, value=texto_valor)
+    vc.font = _VALUE_PENDING_FONT if (eh_expl or valor_fmt is None) else _VALUE_FONT
     vc.alignment = Alignment(horizontal="center", vertical="center")
-    for col in "ABCD":
+    for col in "ABC":
         cell = ws[f"{col}{row}"]
         cell.border = _BORDER_ALL
-        if col != "D":
+        if col != "C":
             cell.fill = _fill(LIGHT_BG)
     ws.row_dimensions[row].height = _ROW_HEIGHT
 
@@ -517,12 +681,12 @@ def _linha_campo_validacao(ws, row: int, meta: dict, valor) -> None:
 # investimento em água + total entram direto na banda ÁGUA.
 _GRUPOS_INVESTIMENTO = [
     ("ÁGUA", "2F6FB0", [
-        "obras_agua", "melhorias_agua",
+        "obras_cobertura_agua", "obras_producao_agua", "melhorias_agua",
         "invest_fonte_propria_agua", "invest_fonte_onerosa_agua",
         "invest_fonte_nao_onerosa_agua", "investimento_total_agua",
     ]),
     ("ESGOTO", "C1560E", [
-        "obras_esgoto", "melhorias_esgoto",
+        "obras_cobertura_esgoto", "obras_tratamento_esgoto", "melhorias_esgoto",
         "invest_fonte_propria_esgoto", "invest_fonte_onerosa_esgoto",
         "invest_fonte_nao_onerosa_esgoto", "investimento_total_esgoto",
     ]),
@@ -574,7 +738,7 @@ def gerar_excel_validacao_area(area: str, municipio: str, ano: int, dados: dict)
     """Ficha de validação de 1 área, 1 município — cada campo em uma
     linha (rótulo, código/fonte, valor atual). Pensado para ser
     enviado por e-mail à área responsável conferir os números."""
-    from scripts.rad_loader import AREAS_VALIDACAO, campos_por_area, CAMPOS_CONTEXTO, CAMPOS_RAD
+    from scripts.rad_loader import AREAS_VALIDACAO, campos_por_area, CAMPOS_RAD, eh_explicacao, texto_explicacao
 
     nome_area = AREAS_VALIDACAO[area]
     cor_area = _CORES_AREA[area]
@@ -584,71 +748,95 @@ def gerar_excel_validacao_area(area: str, municipio: str, ano: int, dados: dict)
     ws = wb.active
     ws.title = f"Validacao_{nome_area}_{municipio}"[:31]
 
-    widths = {"A": 3, "B": 40, "C": 24, "D": 20}
+    widths = {"A": 3, "B": 58, "C": 36}  # mesma calibração da ficha completa
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     ws.sheet_view.showGridLines = False
 
     r = 1
-    ws.merge_cells(f"A{r}:D{r}")
+    ws.merge_cells(f"A{r}:C{r}")
     c = ws.cell(row=r, column=1, value=f"RELATÓRIO DE VALIDAÇÃO — {nome_area.upper()}")
     c.font = _HEADER_FONT; c.fill = _fill(cor_area)
     c.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[r].height = 30
     r += 1
 
-    ws.merge_cells(f"A{r}:D{r}")
+    ws.merge_cells(f"A{r}:C{r}")
     c = ws.cell(row=r, column=1, value=f"MUNICÍPIO: {municipio.upper()} — ANO {ano}")
     c.font = _SUBHEADER_FONT; c.fill = _fill(NAVY2)
     c.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[r].height = 22
-    r += 1
-
-    ws.merge_cells(f"A{r}:D{r}")
-    instr = ws.cell(row=r, column=1, value="Conferir os valores atuais abaixo com a área responsável. Devolver eventuais divergências à equipe de Regulação.")
-    instr.font = _LEGEND_FONT; instr.fill = _fill(LEGEND_BG)
-    instr.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    ws.row_dimensions[r].height = 30
     r += 2
 
-    # Cabeçalho de contexto (Informações do Município) — sempre presente,
-    # para quem valida saber a que município os dados se referem.
-    ws.merge_cells(f"A{r}:D{r}")
-    ctx_title = ws.cell(row=r, column=1, value="CONTEXTO DO MUNICÍPIO")
-    ctx_title.font = _SUBSECTION_FONT; ctx_title.fill = _fill(GRAY)
-    ctx_title.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[r].height = 20
-    r += 1
-    for campo in CAMPOS_CONTEXTO:
-        meta = CAMPOS_RAD[campo]
-        valor = _fmt_valor_excel(dados.get(campo))
-        texto_valor = valor if valor is not None else "—"
-        lc = ws.cell(row=r, column=2, value=meta["label"])
-        lc.font = _LABEL_FONT
-        # Localidades Atendidas é texto longo (lista de 1 a 9+ localidades)
-        # — mescla C:D (mais largura = menos linhas de quebra = linha bem
-        # mais baixa, ver Alterações no RAD 2025 item 2), alinhado à
-        # esquerda com quebra de linha.
-        if campo == "localidades_atendidas":
-            ws.merge_cells(f"C{r}:D{r}")
-            largura_valor = ws.column_dimensions["C"].width + ws.column_dimensions["D"].width
-            vc = ws.cell(row=r, column=3, value=texto_valor)
-            vc.font = _VALUE_FONT
-            vc.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
-            ws.row_dimensions[r].height = _altura_com_quebra(texto_valor, largura_valor)
-        else:
-            vc = ws.cell(row=r, column=3, value=texto_valor)
-            vc.font = _VALUE_FONT
-            vc.alignment = Alignment(horizontal="center")
-            ws.row_dimensions[r].height = _ROW_HEIGHT
-        for col in "ABCD":
-            ws[f"{col}{r}"].border = _BORDER_ALL
-            ws[f"{col}{r}"].fill = _fill(LIGHT_BG)
-        r += 1
-    r += 1
+    # Bloco "CONTEXTO DO MUNICÍPIO" (população/regional/localidades)
+    # removido em 17/09 (pedido do Bruno, item 8) — Município e Ano já
+    # aparecem nos cabeçalhos acima; o resto não ajudava a validação.
     linha_contexto_fim = r
 
-    if area in _GRUPOS_POR_AREA:
+    if area == "investimento":
+        # Água/Esgoto: 2 sub-tabelas por setor (Alterações no RAD 2025,
+        # 17/09 — pedido do Bruno): "Descrição da Obra" (texto, 1 linha
+        # por obra) separada de "Valor Atual" (financeiro) — antes as
+        # duas coisas ficavam misturadas na mesma coluna genérica.
+        _CAMPOS_OBRAS = {
+            "agua":   [("Cobertura", "obras_cobertura_agua"), ("Produção", "obras_producao_agua"), ("Melhorias Operacionais", "melhorias_agua")],
+            "esgoto": [("Cobertura", "obras_cobertura_esgoto"), ("Tratamento", "obras_tratamento_esgoto"), ("Melhorias Operacionais", "melhorias_esgoto")],
+        }
+        _CAMPOS_FONTES = {
+            "agua":   ["invest_fonte_propria_agua", "invest_fonte_onerosa_agua", "invest_fonte_nao_onerosa_agua", "investimento_total_agua"],
+            "esgoto": ["invest_fonte_propria_esgoto", "invest_fonte_onerosa_esgoto", "invest_fonte_nao_onerosa_esgoto", "investimento_total_esgoto"],
+        }
+        for titulo_setor, cor_setor, chave_setor in [("ÁGUA", "2F6FB0", "agua"), ("ESGOTO", "C1560E", "esgoto")]:
+            _banda_validacao(ws, r, titulo_setor, cor_setor)
+            r += 1
+
+            ws.cell(row=r, column=1).fill = _fill(LIGHT_BG)
+            for i, h in enumerate(["Categoria", "Descrição da Obra"], start=2):
+                c = ws.cell(row=r, column=i, value=h)
+                c.font = Font(name="Calibri", color=GRAY, bold=True, size=9.5)
+                c.alignment = Alignment(horizontal="center", vertical="center")
+                c.fill = _fill(LIGHT_BG)
+            ws.row_dimensions[r].height = 18
+            r += 1
+            for label_categoria, campo in _CAMPOS_OBRAS[chave_setor]:
+                r = _linhas_obra_validacao(ws, r, label_categoria, dados.get(campo))
+            r += 1  # respiro entre obras e fontes
+
+            ws.cell(row=r, column=1).fill = _fill(LIGHT_BG)
+            for i, h in enumerate(["Campo", "Valor Atual"], start=2):
+                c = ws.cell(row=r, column=i, value=h)
+                c.font = Font(name="Calibri", color=GRAY, bold=True, size=9.5)
+                c.alignment = Alignment(horizontal="center", vertical="center")
+                c.fill = _fill(LIGHT_BG)
+            ws.row_dimensions[r].height = 18
+            r += 1
+            for campo in _CAMPOS_FONTES[chave_setor]:
+                _linha_campo_validacao(ws, r, CAMPOS_RAD[campo], dados.get(campo))
+                r += 1
+            r += 1  # respiro entre setores
+
+        # Ativos de Uso Compartilhado — só financeiro, segue igual.
+        titulo_grupo, cor_grupo, campos_grupo = next(
+            g for g in _GRUPOS_INVESTIMENTO if g[0] == "ATIVOS DE USO COMPARTILHADO"
+        )
+        _banda_validacao(ws, r, titulo_grupo, cor_grupo)
+        r += 1
+        ws.cell(row=r, column=1).fill = _fill(LIGHT_BG)
+        for i, h in enumerate(["Campo", "Valor Atual"], start=2):
+            c = ws.cell(row=r, column=i, value=h)
+            c.font = Font(name="Calibri", color=GRAY, bold=True, size=9.5)
+            c.alignment = Alignment(horizontal="center", vertical="center")
+            c.fill = _fill(LIGHT_BG)
+        ws.row_dimensions[r].height = 18
+        r += 1
+        for campo in campos_grupo:
+            _linha_campo_validacao(ws, r, CAMPOS_RAD[campo], dados.get(campo))
+            r += 1
+        r += 1
+
+        last_row = r - 2
+
+    elif area in _GRUPOS_POR_AREA:
         # Layout segregado em bandas coloridas por bloco temático, em vez
         # de uma tabela única genérica (Alterações no RAD 2025: item 1 da
         # função "Exportar relatório de validação" pede isso para Água e
@@ -661,9 +849,8 @@ def gerar_excel_validacao_area(area: str, municipio: str, ano: int, dados: dict)
             r += 1
 
             ws.cell(row=r, column=1).fill = _fill(LIGHT_BG)
-            for i, h in enumerate(["Campo", "Código / Fonte", "Valor Atual"], start=2):
+            for i, h in enumerate(["Campo", "Valor Atual"], start=2):
                 c = ws.cell(row=r, column=i, value=h)
-                c.font = _LABEL_FONT
                 c.font = Font(name="Calibri", color=GRAY, bold=True, size=9.5)
                 c.alignment = Alignment(horizontal="center", vertical="center")
                 c.fill = _fill(LIGHT_BG)
@@ -680,41 +867,35 @@ def gerar_excel_validacao_area(area: str, municipio: str, ano: int, dados: dict)
         # há 1 ETE; senão, 1 linha por ETE, numeradas).
         if area == "esgoto":
             etes = dados.get("etes", [])
-            _banda_validacao(ws, r, "ETE(S) DO MUNICÍPIO — TRATAMENTO E EFICIÊNCIA", GRAY)
+            _banda_validacao(ws, r, "ETE(S) DO MUNICÍPIO", GRAY)
             r += 1
             if len(etes) <= 1:
                 ete = etes[0] if etes else None
-                ws.cell(row=r, column=2, value="ETE — nome / tratamento / eficiência").font = _LABEL_FONT
-                ws.cell(row=r, column=3, value="1 ou mais por município").font = _LABEL_FONT
+                ws.cell(row=r, column=2, value="ETE").font = _LABEL_FONT
                 if ete:
-                    trat = f"{_fmt_valor_excel(ete['tratamento_pct'])}%" if ete["tratamento_pct"] is not None else "trat. a preencher"
-                    efic = f"{_fmt_valor_excel(ete['eficiencia_pct'])}%" if ete["eficiencia_pct"] is not None else "efic. a preencher"
-                    texto_valor = f"{ete['nome']} — {trat} — {efic}"
+                    texto_valor = _texto_ete(ete["nome"], ete["tratamento_pct"], ete["eficiencia_pct"])
                 else:
-                    texto_valor = "a preencher"
-                vc = ws.cell(row=r, column=4, value=texto_valor)
+                    texto_valor = "Não aplicável" if dados.get("_sem_esgoto") else "a preencher"
+                vc = ws.cell(row=r, column=3, value=texto_valor)
                 vc.font = _VALUE_FONT if ete else _VALUE_PENDING_FONT
                 vc.alignment = Alignment(horizontal="center", vertical="center")
-                for col in "ABCD":
+                for col in "ABC":
                     cell = ws[f"{col}{r}"]
                     cell.border = _BORDER_ALL
-                    if col != "D":
+                    if col != "C":
                         cell.fill = _fill(LIGHT_BG)
                 ws.row_dimensions[r].height = _ROW_HEIGHT
                 r += 1
             else:
                 for i, ete in enumerate(etes, start=1):
                     ws.cell(row=r, column=2, value=f"ETE {i} de {len(etes)}").font = _LABEL_FONT
-                    ws.cell(row=r, column=3, value="1 ou mais por município").font = _LABEL_FONT
-                    trat = f"{_fmt_valor_excel(ete['tratamento_pct'])}%" if ete["tratamento_pct"] is not None else "trat. a preencher"
-                    efic = f"{_fmt_valor_excel(ete['eficiencia_pct'])}%" if ete["eficiencia_pct"] is not None else "efic. a preencher"
-                    vc = ws.cell(row=r, column=4, value=f"{ete['nome']} — {trat} — {efic}")
+                    vc = ws.cell(row=r, column=3, value=_texto_ete(ete["nome"], ete["tratamento_pct"], ete["eficiencia_pct"]))
                     vc.font = _VALUE_FONT
                     vc.alignment = Alignment(horizontal="center", vertical="center")
-                    for col in "ABCD":
+                    for col in "ABC":
                         cell = ws[f"{col}{r}"]
                         cell.border = _BORDER_ALL
-                        if col != "D":
+                        if col != "C":
                             cell.fill = _fill(LIGHT_BG)
                     ws.row_dimensions[r].height = _ROW_HEIGHT
                     r += 1
@@ -727,9 +908,9 @@ def gerar_excel_validacao_area(area: str, municipio: str, ano: int, dados: dict)
         # do openpyxl inválido (toda coluna de uma Tabela do Excel exige um
         # nome de cabeçalho não vazio e único), e era isso que corrompia o
         # arquivo ("Reparos em ... Tabela de parte de /xl/tables/table1.xml").
-        # A tabela de verdade cobre só B:D; A recebe cor/borda à parte.
+        # A tabela de verdade cobre só B:C; A recebe cor/borda à parte.
         ws.cell(row=r, column=1).fill = _fill(cor_area)
-        headers = ["Campo", "Código / Fonte", "Valor Atual"]
+        headers = ["Campo", "Valor Atual"]
         for i, h in enumerate(headers, start=2):
             c = ws.cell(row=r, column=i, value=h)
             c.font = _HEADER_TABLE_FONT
@@ -745,54 +926,48 @@ def gerar_excel_validacao_area(area: str, municipio: str, ano: int, dados: dict)
 
         # "ete" não é mais um campo escalar em CAMPOS_RAD (ver rad_loader.py)
         # — na área Esgoto, a validação da(s) ETE(s) entra à parte, como
-        # linha(s) extra na mesma tabela (mesmas 4 colunas: rótulo/código/valor),
+        # linha(s) extra na mesma tabela (mesmas 3 colunas: rótulo/valor),
         # já com tratamento% e eficiência% individuais de cada ETE.
         if area == "esgoto":
             etes = dados.get("etes", [])
             if len(etes) <= 1:
                 ete = etes[0] if etes else None
-                ws.cell(row=r, column=2, value="ETE — nome / tratamento / eficiência").font = _LABEL_FONT
-                ws.cell(row=r, column=3, value="1 ou mais por município").font = _LABEL_FONT
+                ws.cell(row=r, column=2, value="ETE").font = _LABEL_FONT
                 if ete:
-                    trat = f"{_fmt_valor_excel(ete['tratamento_pct'])}%" if ete["tratamento_pct"] is not None else "trat. a preencher"
-                    efic = f"{_fmt_valor_excel(ete['eficiencia_pct'])}%" if ete["eficiencia_pct"] is not None else "efic. a preencher"
-                    texto_valor = f"{ete['nome']} — {trat} — {efic}"
+                    texto_valor = _texto_ete(ete["nome"], ete["tratamento_pct"], ete["eficiencia_pct"])
                 else:
-                    texto_valor = "a preencher"
-                vc = ws.cell(row=r, column=4, value=texto_valor)
+                    texto_valor = "Não aplicável" if dados.get("_sem_esgoto") else "a preencher"
+                vc = ws.cell(row=r, column=3, value=texto_valor)
                 vc.font = _VALUE_FONT if ete else _VALUE_PENDING_FONT
                 vc.alignment = Alignment(horizontal="center", vertical="center")
-                for col in "ABCD":
+                for col in "ABC":
                     cell = ws[f"{col}{r}"]
                     cell.border = _BORDER_ALL
-                    if col != "D":
+                    if col != "C":
                         cell.fill = _fill(LIGHT_BG)
                 ws.row_dimensions[r].height = _ROW_HEIGHT
                 r += 1
             else:
                 for i, ete in enumerate(etes, start=1):
                     ws.cell(row=r, column=2, value=f"ETE {i} de {len(etes)}").font = _LABEL_FONT
-                    ws.cell(row=r, column=3, value="1 ou mais por município").font = _LABEL_FONT
-                    trat = f"{_fmt_valor_excel(ete['tratamento_pct'])}%" if ete["tratamento_pct"] is not None else "trat. a preencher"
-                    efic = f"{_fmt_valor_excel(ete['eficiencia_pct'])}%" if ete["eficiencia_pct"] is not None else "efic. a preencher"
-                    vc = ws.cell(row=r, column=4, value=f"{ete['nome']} — {trat} — {efic}")
+                    vc = ws.cell(row=r, column=3, value=_texto_ete(ete["nome"], ete["tratamento_pct"], ete["eficiencia_pct"]))
                     vc.font = _VALUE_FONT
                     vc.alignment = Alignment(horizontal="center", vertical="center")
-                    for col in "ABCD":
+                    for col in "ABC":
                         cell = ws[f"{col}{r}"]
                         cell.border = _BORDER_ALL
-                        if col != "D":
+                        if col != "C":
                             cell.fill = _fill(LIGHT_BG)
                     ws.row_dimensions[r].height = _ROW_HEIGHT
                     r += 1
 
         last_row = r - 1
-        tabela = Table(displayName=f"Validacao{area.capitalize()}", ref=f"B{linha_cabecalho_tabela}:D{last_row}")
+        tabela = Table(displayName=f"Validacao{area.capitalize()}", ref=f"B{linha_cabecalho_tabela}:C{last_row}")
         tabela.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
         ws.add_table(tabela)
 
     r += 1
-    ws.merge_cells(f"A{r}:D{r}")
+    ws.merge_cells(f"A{r}:C{r}")
     rodape = ws.cell(row=r, column=1, value=f"Relatório de Validação — {nome_area} · {municipio}/{ano} · Gerado pelo módulo Relatórios AGEMS do SISPLAN v2")
     rodape.font = _FOOTER_FONT
     rodape.alignment = Alignment(horizontal="center", wrap_text=False)
