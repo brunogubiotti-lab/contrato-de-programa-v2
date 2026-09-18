@@ -369,15 +369,15 @@ function radAtualizarFiltros(){
   <div class="band navy">I. Informações do Município</div>
   <div class="card">
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">População Urbana</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">População Urbana</span></div></div>
       <div class="valwrap">{{ fmt(dados.pop_urbana, ' hab') }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Habitantes por domicílio</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Habitantes por domicílio</span></div></div>
       <div class="valwrap">{{ fmt(dados.habitantes_domicilio) }}</div>
     </div>
     <div class="row-stack">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Localidades Atendidas</span> </div></div>
+      <div class="lead"><div class="txt"><span class="name">Localidades Atendidas</span> </div></div>
       {% if dados.localidades_atendidas %}
       <div class="valtext right">{{ dados.localidades_atendidas.split(',') | map('trim') | join(', ') }}</div>
       {% else %}
@@ -385,11 +385,11 @@ function radAtualizarFiltros(){
       {% endif %}
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Crescimento Vegetativo</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Crescimento Vegetativo</span></div></div>
       <div class="valwrap">{{ fmt(dados.cresc_vegetativo, ' hab') }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Regional</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Regional</span></div></div>
       <div class="valwrap">{{ fmt(regional) }}</div>
     </div>
   </div>
@@ -402,42 +402,42 @@ function radAtualizarFiltros(){
   <div class="twin">
     <div class="card">
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">População atendida</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">População atendida</span></div></div>
         <div class="valwrap">{{ fmt(dados.pop_atendida_agua_hab) }}{% if dados.pop_atendida_agua_pct %} <span class="val">({{ dados.pop_atendida_agua_pct | brnum }}%)</span>{% endif %}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Captação</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Captação</span></div></div>
         <div class="valwrap">{{ fmt(dados.captacao) }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">ETA</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">ETA</span></div></div>
         <div class="valwrap">{{ fmt(dados.eta) }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Poços</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Poços</span></div></div>
         <div class="valwrap">{{ fmt(dados.pocos) }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Extensão de Rede</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Extensão de Rede</span></div></div>
         <div class="valwrap">{{ fmt(dados.extensao_rede_agua_km, ' km') }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Reservação</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Reservação</span></div></div>
         <div class="valwrap">{{ fmt(dados.reservacao_m3, ' m³') }}</div>
       </div>
     </div>
     <div class="card">
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">População atendida</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">População atendida</span></div></div>
         <div class="valwrap">{{ fmt(dados.pop_atendida_esgoto_hab) }}{% if dados.pop_atendida_esgoto_pct %} <span class="val">({{ dados.pop_atendida_esgoto_pct | brnum }}%)</span>{% endif %}</div>
       </div>
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Tratamento</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Tratamento</span></div></div>
         <div class="valwrap">{{ fmt(dados.tratamento_esgoto_pct, '%') }}</div>
       </div>
       {% if dados.qtd_etes <= 1 %}
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">ETE</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">ETE</span></div></div>
         <div class="valwrap">
           {% if dados.etes %}
           <span class="val">{{ dados.etes[0].nome }}</span>
@@ -457,7 +457,7 @@ function radAtualizarFiltros(){
       {% endif %}
       {% endif %}
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Extensão de Rede</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Extensão de Rede</span></div></div>
         <div class="valwrap">{{ fmt(dados.extensao_rede_esgoto_km, ' km') }}</div>
       </div>
     </div>
@@ -468,7 +468,7 @@ function radAtualizarFiltros(){
   <div class="card">
     {% for ete in dados.etes %}
     <div class="row sewer-bullet">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">ETE {{ loop.index }} de {{ dados.qtd_etes }} — {{ ete.nome }}</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">ETE {{ loop.index }} de {{ dados.qtd_etes }} — {{ ete.nome }}</span></div></div>
       <div class="valwrap">{{ fmt(ete.eficiencia_pct, '%') }}</div>
     </div>
     {% endfor %}
@@ -484,41 +484,41 @@ function radAtualizarFiltros(){
   <div class="twin">
     <div class="card">
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Volume Produzido</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Volume Produzido</span></div></div>
         <div class="valwrap">{{ fmt(dados.volume_produzido_m3ano, ' m³/ano') }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Perdas na Distribuição</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Perdas na Distribuição</span></div></div>
         <div class="valwrap">{{ fmt(dados.indice_perdas_distribuicao_pct, '%') }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Índice de Hidrometração</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Índice de Hidrometração</span></div></div>
         <div class="valwrap">{{ fmt(dados.indice_hidrometracao_pct, '%') }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Índice de Macromedição</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Índice de Macromedição</span></div></div>
         <div class="valwrap">{{ fmt(dados.indice_macromedicao_pct, '%') }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Consumo Médio por Economia</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Consumo Médio por Economia</span></div></div>
         <div class="valwrap">{{ fmt(dados.consumo_medio_economia) }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Tarifa Média de Água</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Tarifa Média de Água</span></div></div>
         <div class="valwrap">{{ fmt(dados.tarifa_media_agua, ' R$/m³') }}</div>
       </div>
     </div>
     <div class="card">
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Volume Coletado</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Volume Coletado</span></div></div>
         <div class="valwrap">{{ fmt(dados.volume_esgoto_coletado_m3ano, ' m³/ano') }}</div>
       </div>
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Volume Tratado</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Volume Tratado</span></div></div>
         <div class="valwrap">{{ fmt(dados.volume_esgoto_tratado_m3ano, ' m³/ano') }}</div>
       </div>
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Tarifa Média de Esgoto</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Tarifa Média de Esgoto</span></div></div>
         <div class="valwrap">{{ fmt(dados.tarifa_media_esgoto, ' R$/m³') }}</div>
       </div>
     </div>
@@ -527,15 +527,15 @@ function radAtualizarFiltros(){
   <div class="band gray" style="margin-top:16px;">Indicadores Gerais (Água + Esgoto)</div>
   <div class="card">
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Ticket Médio Total</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Ticket Médio Total</span></div></div>
       <div class="valwrap">{{ fmt(dados.ticket_medio_total, ' R$/economia') }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Ligações Reais Faturadas</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Ligações Reais Faturadas</span></div></div>
       <div class="valwrap">{{ fmt(dados.ligacoes_faturadas, ' unidades') }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Ligações Reais Não Faturadas</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Ligações Reais Não Faturadas</span></div></div>
       <div class="valwrap">{{ fmt(dados.ligacoes_nao_faturadas, ' unidades') }}</div>
     </div>
   </div>
@@ -609,53 +609,53 @@ function radAtualizarFiltros(){
   <div class="twin">
     <div class="card">
       <div class="row-stack">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Obras de Cobertura</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Obras de Cobertura</span></div></div>
         <div class="valtext right">{{ fmt(dados.obras_cobertura_agua) }}</div>
       </div>
       <div class="row-stack">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Obras de Produção</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Obras de Produção</span></div></div>
         <div class="valtext right">{{ fmt(dados.obras_producao_agua) }}</div>
       </div>
       <div class="row-stack">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Melhorias Operacionais</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Melhorias Operacionais</span></div></div>
         <div class="valtext right">{{ fmt(dados.melhorias_agua) }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Fonte Própria</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Fonte Própria</span></div></div>
         <div class="valwrap">{{ fmt_moeda(dados.invest_fonte_propria_agua) }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Fonte Onerosa</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Fonte Onerosa</span></div></div>
         <div class="valwrap">{{ fmt_moeda(dados.invest_fonte_onerosa_agua) }}</div>
       </div>
       <div class="row">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Fonte Não Onerosa</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Fonte Não Onerosa</span></div></div>
         <div class="valwrap">{{ fmt_moeda(dados.invest_fonte_nao_onerosa_agua) }}</div>
       </div>
     </div>
     <div class="card">
       <div class="row-stack">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Obras de Cobertura</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Obras de Cobertura</span></div></div>
         <div class="valtext right">{{ fmt(dados.obras_cobertura_esgoto) }}</div>
       </div>
       <div class="row-stack">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Obras de Tratamento</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Obras de Tratamento</span></div></div>
         <div class="valtext right">{{ fmt(dados.obras_tratamento_esgoto) }}</div>
       </div>
       <div class="row-stack">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Melhorias Operacionais</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Melhorias Operacionais</span></div></div>
         <div class="valtext right">{{ fmt(dados.melhorias_esgoto) }}</div>
       </div>
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Fonte Própria</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Fonte Própria</span></div></div>
         <div class="valwrap">{{ fmt_moeda(dados.invest_fonte_propria_esgoto) }}</div>
       </div>
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Fonte Onerosa</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Fonte Onerosa</span></div></div>
         <div class="valwrap">{{ fmt_moeda(dados.invest_fonte_onerosa_esgoto) }}</div>
       </div>
       <div class="row sewer-bullet">
-        <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Fonte Não Onerosa</span></div></div>
+        <div class="lead"><div class="txt"><span class="name">Fonte Não Onerosa</span></div></div>
         <div class="valwrap">{{ fmt_moeda(dados.invest_fonte_nao_onerosa_esgoto) }}</div>
       </div>
     </div>
@@ -664,23 +664,23 @@ function radAtualizarFiltros(){
   <div class="band gray" style="margin-top:12px;">Ativos de Uso Compartilhado</div>
   <div class="card">
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Construção</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Construção</span></div></div>
       <div class="valwrap">{{ fmt_moeda(dados.construcao_compartilhado) }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Aquisição de Veículos</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Aquisição de Veículos</span></div></div>
       <div class="valwrap">{{ fmt_moeda(dados.veiculos_compartilhado) }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Aquisição de Maquinários</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Aquisição de Maquinários</span></div></div>
       <div class="valwrap">{{ fmt_moeda(dados.maquinarios_compartilhado) }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Reforma/Conservação</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Reforma/Conservação</span></div></div>
       <div class="valwrap">{{ fmt_moeda(dados.reforma_compartilhado) }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Obras em Andamento</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Obras em Andamento</span></div></div>
       <div class="valwrap">{{ fmt_moeda(dados.obras_andamento_compartilhado) }}</div>
     </div>
   </div>
@@ -689,11 +689,11 @@ function radAtualizarFiltros(){
   <div class="band gray" style="margin-top:16px;">V. Dados Contratuais</div>
   <div class="card">
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Convênio nº</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Convênio nº</span></div></div>
       <div class="valwrap">{{ fmt(dados.num_convenio_agems) }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Convênio — Assinatura / Vigência</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Convênio — Assinatura / Vigência</span></div></div>
       <div class="valwrap">
         {% if dados.data_assinatura_convenio or dados.data_expiracao_convenio %}
           <span class="val">{{ dados.data_assinatura_convenio or '?' }} até {{ dados.data_expiracao_convenio or '?' }}</span>
@@ -704,11 +704,11 @@ function radAtualizarFiltros(){
       </div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Contrato de Programa nº</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Contrato de Programa nº</span></div></div>
       <div class="valwrap">{{ fmt(dados.num_contrato_programa) }}</div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Contrato de Programa — Assinatura / Vigência</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Contrato de Programa — Assinatura / Vigência</span></div></div>
       <div class="valwrap">
         {% if dados.data_assinatura_cp or dados.data_expiracao_cp %}
           <span class="val">{{ dados.data_assinatura_cp or '?' }} até {{ dados.data_expiracao_cp or '?' }}{% if dados.duracao_anos_cp %} ({{ dados.duracao_anos_cp | int }} anos){% endif %}</span>
@@ -719,7 +719,7 @@ function radAtualizarFiltros(){
       </div>
     </div>
     <div class="row">
-      <div class="lead"><span class="bullet"></span><div class="txt"><span class="name">Revisão de Metas Contratuais — Última Data</span></div></div>
+      <div class="lead"><div class="txt"><span class="name">Revisão de Metas Contratuais — Última Data</span></div></div>
       <div class="valwrap">{{ fmt(dados.revisao_metas_recente) }}</div>
     </div>
   </div>
