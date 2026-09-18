@@ -24,6 +24,7 @@ from scripts.rad_loader import (
     carregar_rad_todos_municipios,
     listar_municipios_rad,
     obter_regional_por_municipio,
+    listar_glossario,
     AREAS_VALIDACAO,
     ANO_PADRAO,
     ANOS_DISPONIVEIS,
@@ -57,7 +58,12 @@ def _municipio_eh_todos(municipio: str) -> bool:
 @relatorios_agems_bp.route("/rad")
 def rad():
     municipios = listar_municipios_rad()
-    municipio_selecionado = request.args.get("municipio") or municipios[0]
+    # Alterações no RAD 2025 (18/09, pedido do Bruno): ao entrar em
+    # /rad sem parâmetro de município na URL, o padrão agora é "Todos
+    # os Municípios" (obrigando a pessoa a escolher um município para
+    # ver a ficha) — antes caía no primeiro município da lista
+    # (municipios[0]), abrindo direto a ficha dele.
+    municipio_selecionado = request.args.get("municipio") or TODOS_MUNICIPIOS
     ano = _resolver_ano()
 
     exibir_todos = _municipio_eh_todos(municipio_selecionado)
@@ -82,6 +88,21 @@ def rad():
         areas_validacao=AREAS_VALIDACAO,
         pagina_ativa="relatorios_agems",
         sub_ativa="rad",
+    )
+
+
+# ═══════════════════ GLOSSÁRIO (Alterações no RAD 2025, itens 1/2) ══
+# Aba nova, sem filtro de município — o glossário é o mesmo para
+# qualquer município (metadados de campo, não dados de campo). Fonte
+# única: CAMPOS_RAD em scripts/rad_loader.py; nada é duplicado aqui.
+
+@relatorios_agems_bp.route("/glossario")
+def glossario():
+    return render_template(
+        "relatorios_agems/glossario.html",
+        itens=listar_glossario(),
+        pagina_ativa="relatorios_agems",
+        sub_ativa="glossario",
     )
 
 
