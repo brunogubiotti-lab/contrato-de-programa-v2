@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios AGEMS — Glossário do RAD{% endblock %}
+
+{% block head_extra %}
+<style>
+  .gloss-sheet{max-width:900px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(22,33,62,0.12);}
+  .gloss-header{background:#16213e;color:#fff;text-align:center;padding:20px;}
+  .gloss-header h1{margin:0;font-size:22px;font-weight:800;}
+  .gloss-header p{margin:6px 0 0;color:#dbe6f5;font-size:13px;}
+  .gloss-band{background:#1c2d52;color:#fff;font-weight:800;font-size:13px;text-transform:uppercase;
+    letter-spacing:.5px;text-align:center;padding:9px 14px;margin:18px 20px 0;border-radius:8px;}
+  table.gloss-table{width:calc(100% - 40px);margin:10px 20px 20px;border-collapse:collapse;font-size:13px;}
+  table.gloss-table th{background:#eceef1;color:#5b6472;text-align:left;padding:8px 10px;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.4px;}
+  table.gloss-table td{padding:8px 10px;border-bottom:1px solid #e1e5ea;vertical-align:top;}
+  table.gloss-table tr:last-child td{border-bottom:none;}
+  .gloss-tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;white-space:nowrap;display:inline-block;}
+  .gloss-tag.auto{background:#e3f5ea;color:#2e8b57;}
+  .gloss-tag.manual{background:#fbf1db;color:#b8860b;}
+  .gloss-tag.laud{background:#fdece1;color:#c1440e;}
+  .gloss-tag.ext{background:#eceef1;color:#6b7280;}
+  .gloss-codigo{font-family:Consolas,monospace;font-size:12px;color:#3b4656;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gloss-sheet">
+  <div class="gloss-header">
+    <h1>Glossário do RAD — Relatório Anual de Desempenho</h1>
+    <p>Código/fonte, forma de cálculo e classificação de cada campo · SISPLAN v2</p>
+  </div>
+
+  {% set ns = namespace(secao_atual=None) %}
+  {% for item in itens %}
+    {% if item.secao != ns.secao_atual %}
+      {% if ns.secao_atual is not none %}</table>{% endif %}
+      {% set ns.secao_atual = item.secao %}
+      <div class="gloss-band">{{ item.secao }}</div>
+      <table class="gloss-table">
+        <tr><th style="width:32%;">Campo</th><th style="width:28%;">Código / Fonte</th><th style="width:40%;">Classificação</th></tr>
+    {% endif %}
+    <tr>
+      <td><strong>{{ item.label }}</strong></td>
+      <td class="gloss-codigo">{{ item.codigo }}</td>
+      <td><span class="gloss-tag {{ item.classificacao }}">{{ item.classificacao_label }}</span></td>
+    </tr>
+  {% endfor %}
+  {% if itens %}</table>{% endif %}
+</div>
+{% endblock %}

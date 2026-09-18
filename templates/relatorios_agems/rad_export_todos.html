@@ -158,14 +158,17 @@
     color:var(--navy);
     line-height:1.5;
     text-align:left;
+    white-space:pre-line;
+    word-break:break-word;
+    overflow-wrap:anywhere;
   }
   .row-stack .valtext.pending{
     font-size:12px;font-style:italic;font-weight:600;color:#a9b0bb;
   }
   .row-stack .valtext.right{
-    text-align:right;
+    text-align:left;
   }
-  .row .lead{display:flex;align-items:flex-start;gap:8px;min-width:0;}
+  .row .lead, .row-stack .lead{display:flex;align-items:flex-start;gap:8px;min-width:0;}
   .bullet{
     width:9px;height:9px;border-radius:50%;
     background:var(--water);
@@ -180,6 +183,9 @@
   }
   .val{
     font-size:16px;font-weight:800;color:var(--navy);white-space:nowrap;
+  }
+  .row-stack .val{
+    white-space:pre-line;word-break:break-word;overflow-wrap:anywhere;
   }
   .val.pending{
     font-size:12px;font-style:italic;font-weight:600;color:#a9b0bb;
@@ -222,7 +228,7 @@
     text-transform:uppercase;
     text-align:center;
   }
-  .metas-card.water .head{background:var(--green);}
+  .metas-card.water .head{background:var(--water);}
   .metas-card.sewer .head{background:var(--orange);}
   .metas-card .body{background:var(--card);padding:2px 14px;}
 
@@ -266,7 +272,7 @@
     background:var(--water);color:#fff;text-align:center;
     font-weight:800;font-size:12.5px;padding:8px 8px;text-transform:uppercase;
   }
-  .invest-card.sewer .head{background:var(--sewer);}
+  .invest-card.sewer .head{background:var(--orange);}
   .invest-card.shared .head{background:var(--gray);}
   .invest-card .body{
     background:var(--card);padding:12px 10px;text-align:center;
